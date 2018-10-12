@@ -1,2 +1,6 @@
 
 *.pcd
+
+cmake-build-debug/src/
+
+cmake-build-debug/

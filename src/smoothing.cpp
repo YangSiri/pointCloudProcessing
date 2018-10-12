@@ -10,23 +10,30 @@
 
 #include <boost/thread/thread.hpp>
 
-#include <pcl/search/search.h>
 #include <pcl/segmentation/region_growing.h>
-#include <pcl/kdtree/kdtree_flann.h>
-#include <pcl/features/normal_3d.h>
+#include <pcl/segmentation/sac_segmentation.h>
+
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/visualization/cloud_viewer.h>
+
+#include <pcl/io/pcd_io.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/search/search.h>
 #include <pcl/common/common_headers.h>
 #include <pcl/console/parse.h>
 #include <pcl/impl/point_types.hpp>
 #include <pcl/point_types.h>
+#include <pcl/ModelCoefficients.h>
+
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/extract_indices.h>
+
+#include <pcl/sample_consensus/ransac.h>
+#include <pcl/sample_consensus/sac_model_plane.h>
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
-#include <pcl/ModelCoefficients.h>
-#include <pcl/filters/extract_indices.h>
-#include <pcl/segmentation/sac_segmentation.h>
 
 
 bool preprocess::txt2pc(std::string txtpath, pcXYZI &origiCloud)
@@ -111,6 +118,10 @@ bool preprocess::planeSeg( pcXYZIptr inputCloud,
         pcXYZI planeCloud;
         sacSeg.setInputCloud(tempCloud);
         sacSeg.segment(*inliers, *coeffi);///输出内点以及平面的参数
+        std::cout<<"plane parameters : "<<coeffi->values[0]<<" / "<<
+                 coeffi->values[1]<<" / "<<
+                 coeffi->values[2]<<" / "<<
+                 coeffi->values[3]<<endl;
 
         if(inliers->indices.size() == 0)
         {
@@ -144,7 +155,7 @@ bool preprocess::normalestimate(pcXYZIptr cloud,
     normalEstimater.setInputCloud(cloud);
     kdtree->setInputCloud(cloud);
     normalEstimater.setSearchMethod(kdtree);
-    normalEstimater.setKSearch(20);
+    normalEstimater.setKSearch(15);
     normalEstimater.compute(*normals);
 
 }
@@ -159,16 +170,41 @@ bool preprocess::regionGrow_flat(pcXYZIptr cloud,
 
     kdTree->setInputCloud(cloud);
     regnGrowr.setInputCloud(cloud);
-    regnGrowr.setMinClusterSize(500);
-    regnGrowr.setMaxClusterSize(10000);
+    regnGrowr.setMinClusterSize(300);
+    regnGrowr.setMaxClusterSize(8000);
     regnGrowr.setSearchMethod(kdTree);
     regnGrowr.setCurvatureThreshold(0.2);
     regnGrowr.setInputNormals(normals);
-    regnGrowr.setNumberOfNeighbours(30) ;
-    regnGrowr.setSmoothnessThreshold( 10.0 / 180.0 * M_PI );
+    regnGrowr.setNumberOfNeighbours(50) ;
+    regnGrowr.setSmoothnessThreshold( 8.0 / 180.0 * M_PI );
 
     regnGrowr.extract(cluster);
     std::cout<<"total "<<cluster.size()<<" clusters. "<<endl;
+
+    ///RANSAC求取平面参数
+    Eigen::VectorXf plane_paras;
+    for(size_t i=0 ; i<cluster.size() ; i++)
+    {
+        std::cout<<"----------------------------\n";
+        pcl::SampleConsensusModelPlane<pcl::PointXYZI>::Ptr plane_modl
+                (new pcl::SampleConsensusModelPlane<pcl::PointXYZI>(cloud,cluster[i].indices) );
+        std::cout<<"cluster size : "<<cluster[i].indices.size()<<"\n";
+
+        pcl::RandomSampleConsensus<pcl::PointXYZI> ransac(plane_modl);
+        ransac.setDistanceThreshold(0.3);
+        ransac.computeModel();
+        ransac.getInliers(cluster[i].indices);
+        ransac.getModelCoefficients(plane_paras);
+//        plane_modl->computeModelCoefficients(cluster[i].indices, plane_paras);
+        if(fabs(plane_paras(0,0)) > 0.98 || fabs(plane_paras(1,0)) > 0.98)
+        {
+            std::cout<<"plane parameters : "<<plane_paras<<"\n";
+            std::cout<<"inliers : "<<cluster[i].indices.size()<<endl;
+
+            pcl::io::savePCDFile("../data/plane_"+std::to_string(i)+".pcd", *cloud, cluster[i].indices);
+        }
+
+    }
 
     clustersCloud = regnGrowr.getColoredCloud();
 

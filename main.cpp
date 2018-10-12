@@ -19,7 +19,7 @@ int main()
     preprocess preprocessor;
 //    preprocess1.txt2pc(filepath,*pc);
     pcl::PCDReader pcdReader;
-    pcdReader.read("/home/cyz/CLionProjects/PointCloudProcessing/data/playground_building.pcd", *pc);
+    pcdReader.read("/home/cyz/pointCloudProcessing/data/playground_building.pcd", *pc);
 //    if(pcl::io::loadPCDFile<pcl::PointXYZI>
 //            ("/home/cyz/CLionProjects/PointCloudProcessing/bin/pointCloud_filtered.pcd",*pc) == -1)
 //        return 0;
@@ -51,7 +51,7 @@ int main()
     preprocessor.normalestimate(pc_filtered, pcNormals);///normal estimation
     for(int i=0 ; i<pcNormals->points.size() ; i++)
     {
-        if(pcNormals->points[i].curvature * 100 > 20)
+        if(pcNormals->points[i].curvature * 100 > 25)
         {
             pcl::PointXYZRGB ptRGB ;
             ptRGB.x = pc_filtered->points[i].x;
@@ -77,17 +77,18 @@ int main()
 //    std::vector<pcaAnalysist::pcaFeature> pcaFeasOfkeyCloud;
 //    pcaAnalysistr.calculatePCAofPointCloud(keyCloud, 3, pcaFeasOfkeyCloud);
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc_rgb (new pcl::PointCloud<pcl::PointXYZRGB>);
-    pcl::copyPointCloud(*pc_filtered, *pc_rgb);
-    preprocessor.visualize<pcl::PointXYZRGB>(pc_rgb, 2);
 
-    *bigCurv = *bigCurv + *pc_rgb ;
+//    pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc_rgb (new pcl::PointCloud<pcl::PointXYZRGB>);
+//    pcl::copyPointCloud(*pc_filtered, *pc_rgb);
+//    preprocessor.visualize<pcl::PointXYZRGB>(pc_rgb, 2);
+//
+//    *bigCurv = *bigCurv + *pc_rgb ;
     preprocessor.visualize<pcl::PointXYZRGB>(bigCurv, 5);
 
     ///region growing based on curvature
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr clustersCloud (new pcl::PointCloud<pcl::PointXYZRGB>);
     preprocessor.regionGrow_flat(pc_filtered, pcNormals, clustersCloud);
-    preprocessor.visualize<pcl::PointXYZRGB>(clustersCloud, 2);
+//    preprocessor.visualize<pcl::PointXYZRGB>(clustersCloud, 2);
 
 //    preprocess1.visualize<PointXYZI>(pc_filtered, 3);
 //    preprocess1.visualize_withNormals(pc_filtered,2,pcNormals);
