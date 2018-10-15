@@ -13,6 +13,7 @@
 
 class pcaAnalysist
 {
+    //特征值
     struct lamda
     {
         float la1;
@@ -20,6 +21,7 @@ class pcaAnalysist
         float la3;
     };
 
+    //特征向量
     struct vec
     {
         Eigen::Vector3f v1 ;

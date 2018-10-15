@@ -52,15 +52,23 @@ bool preprocess::txt2pc(std::string txtpath, pcXYZI &origiCloud)
         {
             count++;
             std::stringstream ss(line);
-            ss>>pt.x;
-            ss>>pt.y;
-            ss>>pt.z;
-            ss>>pt.intensity;
-
-            if(pt.z<4)
+            try {
+                ss>>pt.x;
+                ss>>pt.y;
+                ss>>pt.z;
+                ss>>pt.intensity;
+            }
+            catch(...)
+            {
+                std::cout<<"invalid data!"<<endl;
                 continue;
+            }
+
+
+//            if(pt.z<4)
+//                continue;
 //            cout<<"INTENSITY : "<<pt.intensity<<endl;
-            cout<<count<<endl;
+            cout<<"Point num : "<<count<<endl;
             origiCloud.push_back(pt);
 
 //            if(count >= 10000000)

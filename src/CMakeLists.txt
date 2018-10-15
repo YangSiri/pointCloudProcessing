@@ -16,3 +16,6 @@ target_link_libraries(smooth ${PCL_LIBRARIES} )
 
 add_library(pcaAnalysis  pcaAnalysis.cpp )
 target_link_libraries(pcaAnalysis smooth ${PCL_LIBRARIES} )
+
+add_library(buildingFacadeExtraction  buildingFacadeExtraction.cpp )
+target_link_libraries(buildingFacadeExtraction pcaAnalysis smooth ${PCL_LIBRARIES} )
