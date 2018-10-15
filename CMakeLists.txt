@@ -18,4 +18,8 @@ INCLUDE_DIRECTORIES( ${PCL_INCLUDE_DIRS} )
 LINK_LIBRARIES( ${PCL_LIBRARIES_DIRS} )
 
 add_executable(PointCloudProcessing main.cpp )
-target_link_libraries(PointCloudProcessing smooth pcaAnalysis ${PCL_LIBRARIES})
+target_link_libraries(PointCloudProcessing
+        smooth
+        pcaAnalysis
+        buildingFacadeExtraction
+        ${PCL_LIBRARIES})

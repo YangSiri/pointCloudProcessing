@@ -7,6 +7,7 @@
 
 #include "smoothing.h"
 #include "pcaAnalysis.h"
+#include "buildingFacadeExtraction.h"
 
 using namespace pcl;
 
@@ -15,15 +16,15 @@ int main()
 
     PointCloud<PointXYZI>::Ptr pc(new PointCloud<PointXYZI>()) ;
 
-//    std::string filepath="/home/cyz/Data/prj_dc3/laserpts.txt";
+    std::string filepath="/home/cyz/Data/prj_park/laserpts.txt";
     preprocess preprocessor;
-//    preprocess1.txt2pc(filepath,*pc);
-    pcl::PCDReader pcdReader;
-    pcdReader.read("/home/cyz/pointCloudProcessing/data/playground_building.pcd", *pc);
+    preprocessor.txt2pc(filepath,*pc);
+//    pcl::PCDReader pcdReader;
+//    pcdReader.read(filepath, *pc);
 //    if(pcl::io::loadPCDFile<pcl::PointXYZI>
 //            ("/home/cyz/CLionProjects/PointCloudProcessing/bin/pointCloud_filtered.pcd",*pc) == -1)
 //        return 0;
-    cout<<"Read pcd file successfully. "<<endl;
+    cout<<"Read point cloud file successfully. "<<endl;
 //    preprocess1.visualize(pc,1);
 
     PointCloud<PointXYZI>::Ptr pc_filtered(new PointCloud<PointXYZI>()) ;
@@ -32,6 +33,30 @@ int main()
 
     preprocessor.statisticalOutlierRemoval(pc,pc_filtered);///statistical outlier remove
     std::cout<<"statistical outlier removal Done"<<endl;
+
+
+
+    pcXYZIptr nonGroundCloud(new pcXYZI());
+    buildingFacadeExtractor bFE;
+    bFE.groundFilter(pc_filtered, nonGroundCloud);
+    preprocessor.visualize<pcl::PointXYZI>(nonGroundCloud,1);
+//    preprocessor.visualize<pcl::PointXYZI>(pc_filtered,2);
+    std::cout<<"Ground filtered. "<<endl;
+
+    bFE.meanShiftClustering(nonGroundCloud,1);
+    preprocessor.visualize<pcl::PointXYZI>(nonGroundCloud,2);
+
+    pcXYZIptr projectedCloud(new pcXYZI());
+    pcl::ModelCoefficients::Ptr planeParas(new pcl::ModelCoefficients());
+    planeParas->values.resize(4);
+    planeParas->values[0] = 0;
+    planeParas->values[1] = 0;
+    planeParas->values[2] = 1.0;
+    planeParas->values[3] = 0;
+    bFE.planeProjection(nonGroundCloud, planeParas, projectedCloud);
+    preprocessor.visualize<pcl::PointXYZI>(projectedCloud, 3);
+    std::cout<<"Cloud projected. "<<endl;
+
 //    preprocess1.downSample(pc_filtered, pc_filtered_downSample);///voxel grid downsample
 
 //    std::vector<pcXYZI> pc_planes;

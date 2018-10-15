@@ -45,7 +45,7 @@ bool pcaAnalysist::calculatePCAofPointCloud(pcXYZIptr inputCloud, float radius,
 bool pcaAnalysist::calculatePCAofPoint(pcXYZIptr inputCloud, std::vector<int> neighborIndices,
                                        pcaAnalysist::pcaFeature &ptFeature)
 {
-    if(ptFeature.ptNum < 10)
+    if(ptFeature.ptNum < 13)
         return false;
 
     pcl::PointIndices ptIndice;
