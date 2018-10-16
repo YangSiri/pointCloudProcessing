@@ -6,5 +6,8 @@ cmake-build-debug/src/
 cmake-build-debug/
 
 \.idea/
+<<<<<<< HEAD
 
 data/
+=======
+>>>>>>> master
