@@ -4,6 +4,7 @@
 
 #include "buildingFacadeExtraction.h"
 
+//progressive morphological ground filter
 bool buildingFacadeExtractor::groundFilter(pcXYZIptr origiCloud, pcXYZIptr nonGroundCloud)
 {
     pcl::PointIndicesPtr ground(new pcl::PointIndices);
@@ -12,8 +13,8 @@ bool buildingFacadeExtractor::groundFilter(pcXYZIptr origiCloud, pcXYZIptr nonGr
     groundFilter.setInputCloud(origiCloud);
     groundFilter.setMaxWindowSize(20);
     groundFilter.setSlope(1.0f);
-    groundFilter.setMaxDistance(4.0f);
-    groundFilter.setInitialDistance(3.0f);
+    groundFilter.setMaxDistance(6.0f);
+    groundFilter.setInitialDistance(1.0f);//设置初始高度被认为是地面点
     groundFilter.extract(ground->indices);
 
     pcl::ExtractIndices<pcl::PointXYZI> extractor;
@@ -39,7 +40,7 @@ bool buildingFacadeExtractor::planeProjection(pcXYZIptr inputCloud, pcl::ModelCo
 
 bool buildingFacadeExtractor::meanShiftClustering(pcXYZIptr inputcloud, int iterTimes)
 {
-    pcXYZI vecCloud;//储存每一点的mean shift vector
+    pcXYZI vecCloud;///储存每一点的mean shift vector
     pcl::PointXYZI tmp;
 
     pcl::KdTreeFLANN<pcl::PointXYZI> kdTreeFla;
@@ -52,7 +53,7 @@ bool buildingFacadeExtractor::meanShiftClustering(pcXYZIptr inputcloud, int iter
 
     int times = 0;
     do {
-        //for every point in the original cloud
+        ///for every point in the original cloud
         for (int i = 0; i < inputcloud->points.size(); i++)
         {
             std::vector<int>().swap(ptIndces);
@@ -62,31 +63,37 @@ bool buildingFacadeExtractor::meanShiftClustering(pcXYZIptr inputcloud, int iter
             tmp.z = 0;
 
             kdTreeFla.radiusSearch(i, 2.0, ptIndces, ptDist);
+            std::cout<<"/---neighbor points size : "<<ptIndces.size()<<endl;
             if (ptIndces.size() < 15)
             {
                 vecCloud.push_back(tmp);
                 continue;
             }
+//            else if(ptIndces.size() > 1000)
+//            {
+//                std::cout<<"mean shift terminated. "<<endl;
+//                break;
+//            }
 
             meanShiftVec_of_NeighborPt.resize(3, ptIndces.size());
 
-            //for all neighbor pts
+            ///for all neighbor pts
             for (int j = 0; j < ptIndces.size(); j++)
             {
                 meanShiftVec_of_NeighborPt(0, j) = inputcloud->points[ptIndces[j]].x - inputcloud->points[i].x;
                 meanShiftVec_of_NeighborPt(1, j) = inputcloud->points[ptIndces[j]].y - inputcloud->points[i].y;
                 meanShiftVec_of_NeighborPt(2, j) = inputcloud->points[ptIndces[j]].z - inputcloud->points[i].z;
 
-                tmp.x += meanShiftVec_of_NeighborPt(0, j);
-                tmp.y += meanShiftVec_of_NeighborPt(1, j);
-                tmp.z += meanShiftVec_of_NeighborPt(2, j);
+                tmp.x += meanShiftVec_of_NeighborPt(0, j) / ptIndces.size();
+                tmp.y += meanShiftVec_of_NeighborPt(1, j) / ptIndces.size();
+                tmp.z += meanShiftVec_of_NeighborPt(2, j) / ptIndces.size();
 
-                std::cout<<"---------x__"<<tmp.x;
-                std::cout<<"---------y__"<<tmp.y;
-                std::cout<<"---------z__"<<tmp.z<<endl;
+//                std::cout<<"/---dx = "<<tmp.x;
+//                std::cout<<"/---dy = "<<tmp.y;
+//                std::cout<<"/---dz = "<<tmp.z<<endl;
 
             }
-            vecCloud.push_back(tmp);//save mean shift vector
+            vecCloud.push_back(tmp);///save mean shift vector
         }
 
         //update every point based on mean shift vector
@@ -106,11 +113,17 @@ bool buildingFacadeExtractor::meanShiftClustering(pcXYZIptr inputcloud, int iter
 
 }
 
+
 bool buildingFacadeExtractor::constructVoxels(pcXYZIptr inputCloud, float gridResolution,
                                               buildingFacadeExtractor::voxel* voxels_of_Cloud)
 {
     pcl::PointXYZI minPt, maxPt;
     pcl::getMinMax3D(*inputCloud, minPt, maxPt);
+
+    pcl::octree::OctreePointCloudSearch<pcl::PointXYZI> pcOctree(gridResolution);
+    pcOctree.setInputCloud(inputCloud);
+    pcOctree.addPointsFromInputCloud();
+    pcOctree.defineBoundingBox(minPt.x, minPt.y, minPt.z, maxPt.x, maxPt.y, maxPt.z);
 
     int colsX = std::ceil((maxPt.x - minPt.x) / gridResolution);
     int colsY = std::ceil((maxPt.y - minPt.y) / gridResolution);
@@ -120,6 +133,7 @@ bool buildingFacadeExtractor::constructVoxels(pcXYZIptr inputCloud, float gridRe
 
     for(int i=0 ; i<inputCloud->points.size() ; i++)
     {
+        pcOctree.voxelSearch(i,voxels_of_Cloud[i].ptIndices);
 
     }
 

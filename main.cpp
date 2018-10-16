@@ -16,11 +16,11 @@ int main()
 
     PointCloud<PointXYZI>::Ptr pc(new PointCloud<PointXYZI>()) ;
 
-    std::string filepath="/home/cyz/Data/prj_park/laserpts.txt";
+    std::string filepath="/home/cyz/pointCloudProcessing/data/playground_building.pcd";
     preprocess preprocessor;
-    preprocessor.txt2pc(filepath,*pc);
-//    pcl::PCDReader pcdReader;
-//    pcdReader.read(filepath, *pc);
+//    preprocessor.txt2pc(filepath,*pc);
+    pcl::PCDReader pcdReader;
+    pcdReader.read(filepath, *pc);
 //    if(pcl::io::loadPCDFile<pcl::PointXYZI>
 //            ("/home/cyz/CLionProjects/PointCloudProcessing/bin/pointCloud_filtered.pcd",*pc) == -1)
 //        return 0;
@@ -33,17 +33,17 @@ int main()
 
     preprocessor.statisticalOutlierRemoval(pc,pc_filtered);///statistical outlier remove
     std::cout<<"statistical outlier removal Done"<<endl;
+    preprocessor.visualize<pcl::PointXYZI>(pc_filtered,1);
 
-
-
-    pcXYZIptr nonGroundCloud(new pcXYZI());
     buildingFacadeExtractor bFE;
+    pcXYZIptr nonGroundCloud(new pcXYZI());
     bFE.groundFilter(pc_filtered, nonGroundCloud);
+    std::cout<<"Ground filtered. "<<endl;
     preprocessor.visualize<pcl::PointXYZI>(nonGroundCloud,1);
 //    preprocessor.visualize<pcl::PointXYZI>(pc_filtered,2);
-    std::cout<<"Ground filtered. "<<endl;
 
-    bFE.meanShiftClustering(nonGroundCloud,1);
+    bFE.meanShiftClustering(nonGroundCloud,3);
+    std::cout<<"mean shift done. "<<endl;
     preprocessor.visualize<pcl::PointXYZI>(nonGroundCloud,2);
 
     pcXYZIptr projectedCloud(new pcXYZI());
