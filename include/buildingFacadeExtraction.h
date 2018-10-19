@@ -19,14 +19,15 @@
 
 class buildingFacadeExtractor
 {
+    
+public:
     struct voxel
     {
         int id;
         int ptNums;
         std::vector<int> ptIndices;
     };
-
-public:
+    
     bool groundFilter(pcXYZIptr origiCloud, pcXYZIptr nonGroundCloud);
 
     bool planeProjection(pcXYZIptr inputCloud,pcl::ModelCoefficients::Ptr paras,

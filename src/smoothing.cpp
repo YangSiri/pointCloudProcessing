@@ -98,7 +98,7 @@ bool preprocess::downSample(pcXYZIptr cloud, pcXYZIptr cloud_new)
 {
     pcl::VoxelGrid<pcl::PointXYZI> voxGrd;
     voxGrd.setInputCloud(cloud);
-    voxGrd.setLeafSize(0.5, 0.5, 0.5);
+    voxGrd.setLeafSize(0.2f, 0.2f, 0.2f);///采样密度
 
     voxGrd.filter(*cloud_new);
 }

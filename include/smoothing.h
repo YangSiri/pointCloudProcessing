@@ -29,6 +29,9 @@
 typedef pcl::PointCloud<pcl::PointXYZI>::Ptr  pcXYZIptr;
 typedef pcl::PointCloud<pcl::PointXYZI>  pcXYZI;
 
+typedef pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcRGBptr;
+typedef pcl::PointCloud<pcl::PointXYZRGB> pcRGB;
+
 class preprocess
 {
 public:

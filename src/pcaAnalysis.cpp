@@ -15,7 +15,7 @@ bool pcaAnalysist::calculatePCAofPointCloud(pcXYZIptr inputCloud, float radius,
     kdTreeFla.setInputCloud(inputCloud);
     pcaFeature tempFea;
 
-    for(size_t i=0 ; i<inputCloud->points.size() ; i++)
+    for(int i=0 ; i<inputCloud->points.size() ; i++)
     {
         std::vector<int> neighborIndices;
         std::vector<float> neighborDists;
@@ -23,9 +23,7 @@ bool pcaAnalysist::calculatePCAofPointCloud(pcXYZIptr inputCloud, float radius,
         std::vector<float>().swap(neighborDists) ;
 
         kdTreeFla.radiusSearch(i, radius, neighborIndices, neighborDists);
-        tempFea.ptID = i;
-        tempFea.ptNum = neighborIndices.size();
-        calculatePCAofPoint(inputCloud, neighborIndices, tempFea);
+        calculatePCAofPoint(inputCloud, i, neighborIndices, tempFea);
         try
         {
             tempFea.lineStruc =( sqrt(tempFea.lamds.la1) - sqrt(tempFea.lamds.la2) ) / sqrt(tempFea.lamds.la1);
@@ -42,22 +40,33 @@ bool pcaAnalysist::calculatePCAofPointCloud(pcXYZIptr inputCloud, float radius,
 
 }
 
-bool pcaAnalysist::calculatePCAofPoint(pcXYZIptr inputCloud, std::vector<int> neighborIndices,
+bool pcaAnalysist::calculatePCAofPoint(pcXYZIptr inputCloud, int i, std::vector<int> neighborIndices,
                                        pcaAnalysist::pcaFeature &ptFeature)
 {
+    ptFeature.ptID = i;
+    ptFeature.ptNum = neighborIndices.size();
+
     if(ptFeature.ptNum < 13)
-        return false;
+        return true;
 
-    pcl::PointIndices ptIndice;
-    ptIndice.indices.swap(neighborIndices);
-    pcl::PointIndices::Ptr indicesPtr(new pcl::PointIndices(ptIndice));
-//    indicesPtr->swap(neighborIndices);
-    pcl::PCA<pcl::PointXYZI> pcaFunc;///构造PCA函数
-    pcaFunc.setInputCloud(inputCloud);
-    pcaFunc.setIndices(indicesPtr);
+    Eigen::Vector4f pt = inputCloud->points[i].getVector4fMap();
+    Eigen::Matrix3f covMatrix;
+    pcl::computeCovarianceMatrixNormalized(*inputCloud, neighborIndices, pt, covMatrix);
 
-    Eigen::Vector3f eigenValues = pcaFunc.getEigenValues();
-    Eigen::Matrix3f eigenVecs = pcaFunc.getEigenVectors();
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigenSolver(covMatrix, Eigen::ComputeEigenvectors);
+    Eigen::Vector3f eigenValues = eigenSolver.eigenvalues();
+    Eigen::Matrix3f eigenVecs = eigenSolver.eigenvectors();
+
+//    pcl::PointIndices ptIndice;
+//    ptIndice.indices.swap(neighborIndices);
+//    pcl::PointIndices::Ptr indicesPtr(new pcl::PointIndices(ptIndice));
+////    indicesPtr->swap(neighborIndices);
+//    pcl::PCA<pcl::PointXYZI> pcaFunc;///构造PCA函数
+//    pcaFunc.setInputCloud(inputCloud);
+//    pcaFunc.setIndices(indicesPtr);
+
+//    Eigen::Vector3f eigenValues = pcaFunc.getEigenValues();
+//    Eigen::Matrix3f eigenVecs = pcaFunc.getEigenVectors();
 
     ptFeature.lamds.la1 = eigenValues(0,0);
     ptFeature.lamds.la2 = eigenValues(1,0);

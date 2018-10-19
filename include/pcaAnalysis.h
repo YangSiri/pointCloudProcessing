@@ -46,7 +46,7 @@ public:
 
     bool calculatePCAofPointCloud(pcXYZIptr inputCloud, float radius, std::vector<pcaFeature> &pcaFeaofCloud);
 
-    bool calculatePCAofPoint(pcXYZIptr inputCloud, std::vector<int> neighborIndices, pcaFeature &ptFeature);
+    bool calculatePCAofPoint(pcXYZIptr inputCloud, int i, std::vector<int> neighborIndices, pcaFeature &ptFeature);
 
     bool getMiniBoundingBox(pcXYZIptr inputCloud);
 
