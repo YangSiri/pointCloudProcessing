@@ -44,9 +44,16 @@ public:
         float scatterStruc;
     };
 
-    bool calculatePCAofPointCloud(pcXYZIptr inputCloud, float radius, std::vector<pcaFeature> &pcaFeaofCloud);
+    bool calculatePCAofPointCloud(pcXYZIptr inputCloud, float radius,
+                                  std::vector<pcaFeature> &pcaFeaofCloud);
 
-    bool calculatePCAofPoint(pcXYZIptr inputCloud, int i, std::vector<int> neighborIndices, pcaFeature &ptFeature);
+    bool calculatePCAofPoint(pcXYZIptr inputCloud, int i,
+                             std::vector<int> neighborIndices,
+                             pcaFeature &ptFeature);
+
+    bool calculatePCAofPoint(pcXYZIptr inputCloud, pcl::PointXYZI centro,
+                                           std::vector<int> neighborIndices,
+                                           pcaAnalysist::pcaFeature &ptFeature);
 
     bool getMiniBoundingBox(pcXYZIptr inputCloud);
 

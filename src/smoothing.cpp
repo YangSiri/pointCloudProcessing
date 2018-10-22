@@ -126,7 +126,8 @@ bool preprocess::planeSeg( pcXYZIptr inputCloud,
         pcXYZI planeCloud;
         sacSeg.setInputCloud(tempCloud);
         sacSeg.segment(*inliers, *coeffi);///输出内点以及平面的参数
-        std::cout<<"plane parameters : "<<coeffi->values[0]<<" / "<<
+        std::cout<<"plane parameters : "<<
+                 coeffi->values[0]<<" / "<<
                  coeffi->values[1]<<" / "<<
                  coeffi->values[2]<<" / "<<
                  coeffi->values[3]<<endl;
@@ -150,7 +151,7 @@ bool preprocess::planeSeg( pcXYZIptr inputCloud,
         extracIndice.setNegative(true);
         extracIndice.filter(*tempCloud);
 
-    }while(tempCloud->points.size()>0.3 * inputCloud->points.size());
+    }while(tempCloud->points.size() > 0.3 * inputCloud->points.size());//剩余点云数量30%
 
 }
 

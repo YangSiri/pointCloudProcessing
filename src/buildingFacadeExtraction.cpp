@@ -3,6 +3,7 @@
 //
 
 #include <pcl/visualization/cloud_viewer.h>
+#include "pcaAnalysis.h"
 #include "buildingFacadeExtraction.h"
 
 //progressive morphological ground filter
@@ -115,8 +116,7 @@ bool buildingFacadeExtractor::meanShiftClustering(pcXYZIptr inputcloud, int iter
 }
 
 
-bool buildingFacadeExtractor::constructVoxels(pcXYZIptr inputCloud, float gridResolution,
-                                              buildingFacadeExtractor::voxel* voxels_of_Cloud)
+bool buildingFacadeExtractor::constructVoxels(pcXYZIptr inputCloud, float gridResolution)
 {
     pcl::PointXYZI minPt, maxPt;
     pcl::getMinMax3D(*inputCloud, minPt, maxPt);
@@ -130,12 +130,13 @@ bool buildingFacadeExtractor::constructVoxels(pcXYZIptr inputCloud, float gridRe
 //    pcOctree.defineBoundingBox(minPt.x, minPt.y, minPt.z, maxPt.x, maxPt.y, maxPt.z);
     std::vector<pcl::PointXYZI, Eigen::aligned_allocator<pcl::PointXYZI>> voxelCenterpts;
     int voxelSize = pcOctree.getOccupiedVoxelCenters(voxelCenterpts);
+    int voxelNumsFilted = 0;
 
-    int colsX = std::ceil((maxPt.x - minPt.x) / gridResolution);
-    int colsY = std::ceil((maxPt.y - minPt.y) / gridResolution);
-    int colsZ = std::ceil((maxPt.z - minPt.z) / gridResolution);
 
-    voxels_of_Cloud = new voxel[colsX*colsY*colsZ];
+//    std::vector<voxel> voxels;
+//    voxels.resize(voxelSize);
+    voxel voxels[voxelSize] ;
+//    voxel *voxelArrptr = new voxel[voxelSize];
     std::vector<int> inVoxelpt;
 
     for(int i=0 ; i<voxelSize ; i++)
@@ -143,11 +144,28 @@ bool buildingFacadeExtractor::constructVoxels(pcXYZIptr inputCloud, float gridRe
         std::vector<int>().swap(inVoxelpt);
         pcOctree.voxelSearch(voxelCenterpts[i], inVoxelpt);
 
+        std::cout<<"voxel points num: "<<inVoxelpt.size()<<std::endl;
+
+        if(inVoxelpt.size() < 20)
+            continue;
+
+        voxels[i].id = i;
+        voxels[i].ptNums = inVoxelpt.size();
+        voxels[i].centroid = voxelCenterpts[i];
+        voxels[i].ptIndices = inVoxelpt;
+//        (*voxelArrptr).id = i;
+//        (*voxelArrptr).ptNums = inVoxelpt.size();
+//        (*voxelArrptr).centroid = voxelCenterpts[i];
+//        (*voxelArrptr).ptIndices = inVoxelpt;
+//        voxelArrptr++;
+
+        voxelNumsFilted++;
+
+        //不同体素随机赋色
         int r = rand() % 255;
         int g = rand() % 255;
         int b = rand() % 255;
 
-        std::cout<<"voxel points num: "<<inVoxelpt.size()<<endl;
         for(int j=0; j < inVoxelpt.size() ; j++)
         {
             voxelColorCloud->points[inVoxelpt[j]].r = r;
@@ -157,4 +175,26 @@ bool buildingFacadeExtractor::constructVoxels(pcXYZIptr inputCloud, float gridRe
 
     }
 
+//    voxels.resize(voxelNumsFilted);
+    std::vector<voxel> superVox;
+    makeSuperVoxels(voxels, voxelNumsFilted, inputCloud, superVox);
+
+}
+
+bool buildingFacadeExtractor::makeSuperVoxels(buildingFacadeExtractor::voxel *voxelArrptr,
+                                              int voxelNums,
+                                              pcXYZIptr inputCloud,
+                                              std::vector<buildingFacadeExtractor::voxel> &superVoxels)
+{
+    pcaAnalysist pcaAnalysistor;
+    for(int i=0; i<voxelNums ; i++)
+    {
+        pcaAnalysist::pcaFeature pcaFeatureOfVoxel;
+        pcaAnalysistor.calculatePCAofPoint(inputCloud,
+                                           voxelArrptr[i].centroid,
+                                          voxelArrptr[i].ptIndices, pcaFeatureOfVoxel);
+        if(pcaFeatureOfVoxel.planeStruc > 0.6)
+            superVoxels.push_back(voxelArrptr[i]);
+
+    }
 }

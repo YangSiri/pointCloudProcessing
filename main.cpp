@@ -16,7 +16,7 @@ int main()
 
     PointCloud<PointXYZI>::Ptr pc(new PointCloud<PointXYZI>()) ;
 
-    std::string filepath="/home/cyz/pointCloudProcessing/data/playground_building.pcd";
+    std::string filepath="../data/playground_building.pcd";
     preprocess preprocessor;
 //    preprocessor.txt2pc(filepath,*pc);
     pcl::PCDReader pcdReader;
@@ -25,7 +25,7 @@ int main()
 //            ("/home/cyz/CLionProjects/PointCloudProcessing/bin/pointCloud_filtered.pcd",*pc) == -1)
 //        return 0;
     cout<<"Read point cloud file successfully. "<<endl;
-//    preprocess1.visualize(pc,1);
+//    preprocessor.visualize<pcl::PointXYZI>(pc,1);
 
     PointCloud<PointXYZI>::Ptr pc_filtered(new PointCloud<PointXYZI>()) ;
 //    PointCloud<PointXYZI>::Ptr pc_filtered_downSample(new PointCloud<PointXYZI>()) ;
@@ -33,31 +33,32 @@ int main()
 
     preprocessor.statisticalOutlierRemoval(pc,pc_filtered);///statistical outlier remove
     std::cout<<"statistical outlier removal Done"<<endl;
-    preprocessor.visualize<pcl::PointXYZI>(pc_filtered,1);
+    preprocessor.visualize<pcl::PointXYZI>(pc_filtered,1,"point cloud filtered");
 
     buildingFacadeExtractor bFE;
     pcXYZIptr nonGroundCloud(new pcXYZI());
     bFE.groundFilter(pc_filtered, nonGroundCloud);
     std::cout<<"Ground filtered. "<<endl;
-    preprocessor.visualize<pcl::PointXYZI>(nonGroundCloud,1);
+//    preprocessor.visualize<pcl::PointXYZI>(nonGroundCloud,1, "non-ground cloud");
 //    preprocessor.visualize<pcl::PointXYZI>(pc_filtered,2);
 
-    buildingFacadeExtractor::voxel* voxelGrid;
-    bFE.constructVoxels(nonGroundCloud, 3.0, voxelGrid);
+    bFE.constructVoxels(nonGroundCloud, 3.0);
 
     bFE.meanShiftClustering(nonGroundCloud,3);
     std::cout<<"mean shift done. "<<endl;
-    preprocessor.visualize<pcl::PointXYZI>(nonGroundCloud,2);
+    preprocessor.visualize<pcl::PointXYZI>(nonGroundCloud,2,"mean shifted cloud");
 
     pcXYZIptr projectedCloud(new pcXYZI());
     pcl::ModelCoefficients::Ptr planeParas(new pcl::ModelCoefficients());
+
     planeParas->values.resize(4);
     planeParas->values[0] = 0;
     planeParas->values[1] = 0;
     planeParas->values[2] = 1.0;
     planeParas->values[3] = 0;
+
     bFE.planeProjection(nonGroundCloud, planeParas, projectedCloud);
-    preprocessor.visualize<pcl::PointXYZI>(projectedCloud, 3);
+    preprocessor.visualize<pcl::PointXYZI>(projectedCloud, 3, "projected cloud");
     std::cout<<"Cloud projected. "<<endl;
 
 //    preprocess1.downSample(pc_filtered, pc_filtered_downSample);///voxel grid downsample
@@ -111,7 +112,7 @@ int main()
 //    preprocessor.visualize<pcl::PointXYZRGB>(pc_rgb, 2);
 //
 //    *bigCurv = *bigCurv + *pc_rgb ;
-    preprocessor.visualize<pcl::PointXYZRGB>(bigCurv, 5);
+    preprocessor.visualize<pcl::PointXYZRGB>(bigCurv, 5, "keypoints");
 
     ///region growing based on curvature
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr clustersCloud (new pcl::PointCloud<pcl::PointXYZRGB>);

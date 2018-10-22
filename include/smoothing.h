@@ -39,9 +39,10 @@ public:
 
     ///类模板只能定义在*.h(*.hpp)文件中
     template <typename ptType>
-    bool visualize(const typename pcl::PointCloud <ptType>::ConstPtr pointCloud, int id)
+    bool visualize(const typename pcl::PointCloud <ptType>::ConstPtr pointCloud, int id, std::string name)
     {
-        boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("pc viewer"));
+//        pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("pc viewer"));
+        boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer(name));
 
 //    viewer->setBackgroundColor(0,0,0);
         viewer->addPointCloud<ptType>(pointCloud,std::to_string(id));

@@ -26,6 +26,7 @@ public:
         int id;
         int ptNums;
         std::vector<int> ptIndices;
+        pcl::PointXYZI centroid;
     };
     
     bool groundFilter(pcXYZIptr origiCloud, pcXYZIptr nonGroundCloud);
@@ -35,8 +36,10 @@ public:
 
     bool meanShiftClustering(pcXYZIptr inputcloud, int iterTimes);
 
-    bool constructVoxels(pcXYZIptr inputCloud, float gridResolution,
-                         voxel* voxels_of_Cloud);
+    bool constructVoxels(pcXYZIptr inputCloud, float gridResolution);
+
+    bool makeSuperVoxels(voxel *voxelArrptr, int voxelNums, pcXYZIptr inputCloud,
+                         std::vector<voxel> &superVoxels);
 };
 
 #endif //POINTCLOUDPROCESSING_BUILDINGFACADEEXTRACTION_H

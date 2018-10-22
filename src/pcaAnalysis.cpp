@@ -33,6 +33,7 @@ bool pcaAnalysist::calculatePCAofPointCloud(pcXYZIptr inputCloud, float radius,
         catch (float)
         {
             std::cout<<"Invalid eigen values!"<<endl;
+            continue;
         }
 
         pcaFeaofCloud.push_back(tempFea);
@@ -83,6 +84,40 @@ bool pcaAnalysist::calculatePCAofPoint(pcXYZIptr inputCloud, int i, std::vector<
     ptFeature.vecs.v3(0,0) = eigenVecs(0,2);
     ptFeature.vecs.v3(1,0) = eigenVecs(1,2);
     ptFeature.vecs.v3(2,0) = eigenVecs(2,2);
+}
+
+bool pcaAnalysist::calculatePCAofPoint(pcXYZIptr inputCloud, pcl::PointXYZI centro, std::vector<int> neighborIndices,
+                                       pcaAnalysist::pcaFeature &ptFeature)
+{
+    ptFeature.ptNum = neighborIndices.size();
+
+    Eigen::Vector4f pt = centro.getVector4fMap();
+    Eigen::Matrix3f covMatrix;
+    pcl::computeCovarianceMatrixNormalized(*inputCloud, neighborIndices, pt, covMatrix);
+
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigenSolver(covMatrix, Eigen::ComputeEigenvectors);
+    Eigen::Vector3f eigenValues = eigenSolver.eigenvalues();
+    Eigen::Matrix3f eigenVecs = eigenSolver.eigenvectors();
+
+    ptFeature.lamds.la1 = eigenValues(0,0);
+    ptFeature.lamds.la2 = eigenValues(1,0);
+    ptFeature.lamds.la3 = eigenValues(2,0);
+
+    ptFeature.vecs.v1(0,0) = eigenVecs(0,0);
+    ptFeature.vecs.v1(1,0) = eigenVecs(1,0);
+    ptFeature.vecs.v1(2,0) = eigenVecs(2,0);
+
+    ptFeature.vecs.v2(0,0) = eigenVecs(0,1);
+    ptFeature.vecs.v2(1,0) = eigenVecs(1,1);
+    ptFeature.vecs.v2(2,0) = eigenVecs(2,1);
+
+    ptFeature.vecs.v3(0,0) = eigenVecs(0,2);
+    ptFeature.vecs.v3(1,0) = eigenVecs(1,2);
+    ptFeature.vecs.v3(2,0) = eigenVecs(2,2);
+
+    ptFeature.lineStruc =( sqrt(ptFeature.lamds.la1) - sqrt(ptFeature.lamds.la2) ) / sqrt(ptFeature.lamds.la1);
+    ptFeature.planeStruc =( sqrt(ptFeature.lamds.la2) - sqrt(ptFeature.lamds.la3) )/sqrt(ptFeature.lamds.la1);
+    ptFeature.scatterStruc = sqrt(ptFeature.lamds.la3) / sqrt(ptFeature.lamds.la1);
 }
 
 bool pcaAnalysist::getMiniBoundingBox(pcXYZIptr inputCloud)
