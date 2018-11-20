@@ -3,6 +3,9 @@
 //
 
 #include <pcl/visualization/cloud_viewer.h>
+#include <pcl/visualization/range_image_visualizer.h>
+
+#include "smoothing.h"
 #include "pcaAnalysis.h"
 #include "buildingFacadeExtraction.h"
 

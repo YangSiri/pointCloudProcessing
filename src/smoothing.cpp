@@ -80,7 +80,80 @@ bool preprocess::txt2pc(std::string txtpath, pcXYZI &origiCloud)
     return true;
 }
 
+bool preprocess::xyz2pc(std::string txtpath, pcXYZI &origiCloud)
+{
+    std::ifstream xyzfile(txtpath);
+    pcl::PointXYZI pt;
+    char line[256];
+    int count = 0;
+    char intens;
 
+    if(!xyzfile)
+    {
+        std::cout<<"Wrong *.xyz file! "<<endl;
+    } else
+    {
+        while(!xyzfile.eof())
+        {
+            xyzfile.getline(line,256);
+
+            try {
+                std::sscanf(line, "%f %f %f %s", &pt.x, &pt.y, &pt.z, &intens);
+                pt.intensity = intens;
+                count++;
+            }
+            catch(...)
+            {
+                std::cout<<"invalid data!"<<endl;
+                continue;
+            }
+
+//            if(pt.z<4)
+//                continue;
+//            cout<<"INTENSITY : "<<pt.intensity<<endl;
+//            cout<<"Point num : "<<count<<endl;
+//            cout<<"Point intensity : "<<pt.intensity<<endl;
+            origiCloud.push_back(pt);
+
+//            if(count >= 10000000)
+//                break;
+        }
+
+    }
+
+    return true;
+}
+
+bool preprocess::readpcfileFromFolder(std::string folder, std::vector<pcXYZI> &pcScans)
+{
+    std::vector<std::string> filenames;
+    if(!boost::filesystem::exists(folder))
+    {
+        std::cout<<"wrong file folder!"<<endl;
+        return false;
+    }
+
+    boost::filesystem::directory_iterator endIter;
+    for(boost::filesystem::directory_iterator dirIter(folder); dirIter!=endIter; dirIter++)
+    {
+        if(dirIter->path().extension() != ".xyz")
+        {
+            std::cout<<"not a xyz file"<<endl;
+            continue;
+        }
+        filenames.push_back(dirIter->path().string());
+    }
+    std::cout<<"total "<<filenames.size()<<" files."<<endl;
+
+//    std::vector<pcXYZI> pcScans;
+    pcScans.resize(filenames.size());
+    for(int i=0 ; i<filenames.size() ; i++)
+    {
+//        std::cout<<"file : "<<filenames[i]<<endl;
+        xyz2pc(filenames[i],pcScans[i]);
+        std::cout<<"scan size : "<<pcScans[i].points.size()<<endl;
+    }
+}
 
 bool preprocess::statisticalOutlierRemoval(pcXYZIptr cloud,
                                            pcXYZIptr cloud_new)

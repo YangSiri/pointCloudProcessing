@@ -16,6 +16,7 @@
 #include <pcl/filters/project_inliers.h>
 #include <pcl/segmentation/supervoxel_clustering.h>
 #include <pcl/segmentation/progressive_morphological_filter.h>
+#include <pcl/range_image/range_image.h>
 
 class buildingFacadeExtractor
 {
@@ -40,6 +41,9 @@ public:
 
     bool makeSuperVoxels(voxel *voxelArrptr, int voxelNums, pcXYZIptr inputCloud,
                          std::vector<voxel> &superVoxels);
+
+
+
 };
 
 #endif //POINTCLOUDPROCESSING_BUILDINGFACADEEXTRACTION_H

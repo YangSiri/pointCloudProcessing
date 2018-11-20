@@ -15,27 +15,34 @@ int main()
 {
 
     PointCloud<PointXYZI>::Ptr pc(new PointCloud<PointXYZI>()) ;
+    PointCloud<PointXYZI>::Ptr pcSacn(new PointCloud<PointXYZI>()) ;
 
-    std::string filepath="../data/playground_building.pcd";
+    std::string xyzfileFolder = "./scans";
+    std::string filepath="../data/scans/1514275907-767137.xyz";
+
     preprocess preprocessor;
+//    preprocessor.readpcfileFromFolder(xyzfileFolder);
+    preprocessor.xyz2pc(filepath,*pcSacn);
+
 //    preprocessor.txt2pc(filepath,*pc);
-    pcl::PCDReader pcdReader;
-    pcdReader.read(filepath, *pc);
+//    pcl::PCDReader pcdReader;
+//    pcdReader.read(filepath, *pc);
 //    if(pcl::io::loadPCDFile<pcl::PointXYZI>
 //            ("/home/cyz/CLionProjects/PointCloudProcessing/bin/pointCloud_filtered.pcd",*pc) == -1)
 //        return 0;
     cout<<"Read point cloud file successfully. "<<endl;
-//    preprocessor.visualize<pcl::PointXYZI>(pc,1);
+//    preprocessor.visualize<pcl::PointXYZI>(pc,1,"point cloud");
 
     PointCloud<PointXYZI>::Ptr pc_filtered(new PointCloud<PointXYZI>()) ;
 //    PointCloud<PointXYZI>::Ptr pc_filtered_downSample(new PointCloud<PointXYZI>()) ;
     PointCloud<PointXYZI>::Ptr pc_filtered_plane(new PointCloud<PointXYZI>()) ;
 
-    preprocessor.statisticalOutlierRemoval(pc,pc_filtered);///statistical outlier remove
-    std::cout<<"statistical outlier removal Done"<<endl;
-    preprocessor.visualize<pcl::PointXYZI>(pc_filtered,1,"point cloud filtered");
+//    preprocessor.statisticalOutlierRemoval(pc,pc_filtered);///statistical outlier remove
+//    std::cout<<"statistical outlier removal Done"<<endl;
+//    preprocessor.visualize<pcl::PointXYZI>(pc_filtered,1,"point cloud filtered");
 
     buildingFacadeExtractor bFE;
+
     pcXYZIptr nonGroundCloud(new pcXYZI());
     bFE.groundFilter(pc_filtered, nonGroundCloud);
     std::cout<<"Ground filtered. "<<endl;
