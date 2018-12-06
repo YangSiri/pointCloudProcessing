@@ -14,7 +14,7 @@ using namespace pcl;
 
 int main()
 {
-    char* pcapfilepath="/home/cyz/Downloads/2014-11-10-10-48-31_Velodyne-VLP_20Hz_HeckerPass.pcap";
+    char* pcapfilepath="../data/test.pcap";
     pcapReader pcapReaderClass;
     int flag = pcapReaderClass.readpcapfile(pcapfilepath);
 

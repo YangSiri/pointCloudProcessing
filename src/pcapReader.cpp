@@ -56,8 +56,8 @@ void pcapReader::printPcap(void *data, size_t size)
 
         if (iPos%8==0) printf("\n");
         if (iPos%4==0) printf(" ");
-        printf("-%d-",a);
-//        printf("%04x",a);
+//        printf("-%d-",a);
+        printf("%04x",a);
     }
 
 
