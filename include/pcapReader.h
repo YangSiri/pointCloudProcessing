@@ -7,6 +7,10 @@
 
 //#include <glob.h>
 #include <string.h>
+
+#include "PacketDriver.h"
+#include "PacketDecoder.h"
+
 using namespace std;
 
 typedef unsigned int bpf_u_int32;

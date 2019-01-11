@@ -3,10 +3,13 @@
 //
 #include "netinet/in.h"
 #include <arpa/inet.h>
+#include <iostream>
+#include <fstream>
 
 #include "malloc.h"
 #include "pcapReader.h"
 #include <stdio.h>
+#include <string>
 
 using namespace std;
 
@@ -40,26 +43,63 @@ void pcapReader::printfPcapHeader(pcapReader::pcap_header *ph)
 
 }
 
+int DATA_PKT_NUM=0;
 void pcapReader::printPcap(void *data, size_t size)
 {
+    DATA_PKT_NUM++;
+
     unsigned short iPos = 0;
     //int * p = (int *)data;
     //unsigned short* p = (unsigned short *)data;
     if (data==NULL) { return; }
 
     printf("\n===data:0x%x,len:%lu=========",data,size);
+    std::string datablock;
+    char tmpchar[50];
     for (iPos=0; iPos < size/sizeof(unsigned short); iPos++)
     {
         //printf(" %x ",(int)( * (p+iPos) ));
         // unsigned short a = ntohs(p[iPos]);
         unsigned short a = ntohs( *((unsigned short *)data + iPos ) );
 
-        if (iPos%8==0) printf("\n");
-        if (iPos%4==0) printf(" ");
-//        printf("-%d-",a);
-        printf("%04x",a);
-    }
+        if (iPos>20)
+        {
+            sprintf(tmpchar,"%04x",a);
+            datablock.append(tmpchar);
+        }
+//        if (iPos%8==0) printf("\n");
+//        if (iPos%4==0) printf(" ");
 
+//        printf("-%d-",a);
+//        printf("-%04x-",a);
+    }
+    printf("%d\n",datablock.length());
+
+
+    PacketDriver driver;
+    driver.InitPacketDriver(DATA_PORT);
+    PacketDecoder decoder;
+    decoder.SetCorrectionsFile("../16db.xml");
+
+//    std::string* datablockptr = &datablock;
+    unsigned int* dataLength = new unsigned int();
+    *dataLength = 1206;
+    std::deque<PacketDecoder::HDLFrame> frames;
+    PacketDecoder::HDLFrame latest_frame;
+
+    decoder.DecodePacket(&datablock, dataLength);
+    frames = decoder.GetFrames();
+    printf("frames : %d, ",frames.size());
+
+    std::ofstream ofs("../tmp_laserpts/laserpts"+to_string(DATA_PKT_NUM)+".txt");
+    for(int i=0 ; i<frames.size() ; i++)
+        for(int j=0 ; j< frames[i].x.size() ; j++)
+        {
+            ofs<<frames[i].x[j]<<" "<<frames[i].y[j]<<" "<<frames[i].z[j]<<"\n";
+
+        }
+
+        ofs.close();
 
 //    for (iPos=0; iPos <= size/sizeof(int); iPos++)
 //    {
@@ -123,17 +163,22 @@ int pcapReader::readpcapfile(char *filepath)
         {
             fprintf(stderr, "malloc memory failed.\n");
             ret = ERROR_MEM_ALLOC_FAILED;
+            break;
+
             goto ERROR;
         }
 
         //get a packet contents.
         //read ph.capture_len bytes.
         readSize=fread(buff, 1, ph.capture_len, fp);
+        printf("===readsize : %d=== \n",readSize);
         if (readSize != ph.capture_len)
         {
             free(buff);
             fprintf(stderr, "pcap file parse error.\n");
             ret = ERROR_PCAP_PARSE_FAILED;
+            break;
+
             goto ERROR;
         }
         printPcap(buff, ph.capture_len);
@@ -145,11 +190,11 @@ int pcapReader::readpcapfile(char *filepath)
 
     ERROR:
     //free
-    if (buff)
-    {
-        free(buff);
-        buff=NULL;
-    }
+//    if (buff)
+//    {
+//        free(buff);
+//        buff=NULL;
+//    }
     if (fp)
     {
         fclose(fp);

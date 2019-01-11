@@ -4,6 +4,10 @@
 
 #include "lidarOdometry.h"
 #include "smoothing.h"
+#include "math.h"
+
+#include <pcl/sample_consensus/ransac.h>
+#include <pcl/sample_consensus/sac_model_line.h>
 
 using namespace lidarOdometry;
 
@@ -178,4 +182,109 @@ bool lidarOdometryClass::calculateCurvature(Eigen::MatrixXf ptIDimg)
     {
         
     }
+}
+
+bool lidarOdometryClass::readposefile(std::string posfile, std::vector<lidarOdometry::timeStamp> &postimeStamps,
+                                      std::vector<Eigen::Vector3d> &translations,
+                                      std::vector<Eigen::Quaterniond> &rotations)
+{
+    std::ifstream ifs(posfile);
+    char line[256];
+
+    while(ifs.good())
+    {
+        ifs.getline(line,256);
+        Eigen::Vector3d tmptrans;
+        Eigen::Quaterniond tmprotat;
+
+        long int sec,usec;
+        sscanf(line,"%ld %ld %lf %lf %lf %lf %lf %lf %lf", &sec, &usec, &tmptrans[0], &tmptrans[1], &tmptrans[2],
+        &tmprotat.coeffs()[0], &tmprotat.coeffs()[1], &tmprotat.coeffs()[2], &tmprotat.coeffs()[3]);
+
+        lidarOdometry::timeStamp t(sec, usec);
+        postimeStamps.push_back(t);
+        translations.push_back(tmptrans);
+        rotations.push_back(tmprotat);
+
+    }
+
+    return true;
+}
+
+bool lidarOdometryClass::vector2pointcloudXYZ(std::vector<Eigen::Vector3d> vecPoints, pcXYZptr pcPoints)
+{
+    unsigned long ptSize = vecPoints.size();
+    pcPoints->resize(ptSize);
+//    pcl::PointXYZ tmpPt;
+
+    for(int i=0 ; i<ptSize ; i++)
+    {
+//        tmpPt.x = vecPoints[i](0);
+//        tmpPt.y = vecPoints[i](1);
+//        tmpPt.z = vecPoints[i](2);
+        pcPoints->points[i].x=vecPoints[i](0);
+        pcPoints->points[i].y=vecPoints[i](1);
+        pcPoints->points[i].z=vecPoints[i](2);
+    }
+
+    return true;
+}
+
+bool lidarOdometryClass::linefitting(pcXYZ inputCloud, std::vector<std::vector<int>> &linesIndices)
+{
+    int cloudSize = inputCloud.points.size();
+    pcXYZptr tempCloud (new pcXYZ);
+    pcl::copyPointCloud(inputCloud, *tempCloud);
+
+    pcl::ModelCoefficients::Ptr coeffi(new pcl::ModelCoefficients());
+    pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
+//
+//    pcl::SampleConsensusModelLine<pcl::PointXYZ>::Ptr sacline;
+//    sacline->setInputCloud();
+//    pcl::RandomSampleConsensus<pcl::PointXYZ> ransac();
+    pcl::SACSegmentation<pcl::PointXYZ> sacSeg;
+    sacSeg.setOptimizeCoefficients(true);
+    sacSeg.setModelType(pcl::SACMODEL_LINE);
+    sacSeg.setMethodType(pcl::SAC_RANSAC);
+    sacSeg.setDistanceThreshold(0.1);///与模型的距离阈值，小于该值则为内点
+
+    pcl::ExtractIndices<pcl::PointXYZ> extracIndice;
+    std::vector<int> lineIndice;
+    do
+    {
+        std::vector<int>().swap(lineIndice);
+        sacSeg.setInputCloud(tempCloud);
+        sacSeg.segment(*inliers, *coeffi);///输出内点以及直线参数
+        std::cout<<"line parameters : "<<
+                 coeffi->values[0]<<" / "<<
+                 coeffi->values[1]<<" / "<<
+                 coeffi->values[2]<<" / "<<
+                 coeffi->values[3]<<endl;
+
+        if(inliers->indices.size() == 0)
+        {
+            cout<<"There is no large plane for the given dataset. "<<endl;
+            return false;
+        }
+
+        extracIndice.setInputCloud(tempCloud);
+        extracIndice.setIndices(inliers);
+        extracIndice.setNegative(false);
+        extracIndice.filter(lineIndice);
+
+        if(lineIndice.size() < 5000)
+        {
+            std::cout<<"No enough points in line. "<<endl;
+            break;
+        }
+        linesIndices.push_back(lineIndice);
+
+        ///剔除平面点云
+        extracIndice.setNegative(true);
+        extracIndice.filter(*tempCloud);
+
+    }while(tempCloud->points.size() > 0.3 * inputCloud.points.size());//剩余点云数量30%
+
+
+    return true;
 }

@@ -1,4 +1,6 @@
-//
+/*
+ * executable->lidarOdometry
+ */
 // Created by cyz on 18-10-27.
 //
 #include "smoothing.h"
@@ -18,6 +20,25 @@ int main()
     pcapReader pcapReaderClass;
     int flag = pcapReaderClass.readpcapfile(pcapfilepath);
 
+    lidarOdometryClass lidarOdoClas;
+    string posfile = "../data/pose.txt";
+    vector<timeStamp> postimes;
+    vector<Eigen::Vector3d> postrans;
+    vector<Eigen::Quaterniond> posrotats;
+    lidarOdoClas.readposefile(posfile,postimes, postrans, posrotats);
+
+    pcXYZptr posCloud (new pcXYZ());
+    lidarOdoClas.vector2pointcloudXYZ(postrans, posCloud);
+    std::vector<std::vector<int>> linesIndices;
+    lidarOdoClas.linefitting(*posCloud,linesIndices);
+    std::cout<<"poseCloud size : "<<posCloud->points.size()<<endl;
+
+    for(int i=0; i<linesIndices.size() ; i++)
+    {
+        pcl::io::savePCDFile("../data/lineCloud"+to_string(i)+".pcd",*posCloud,linesIndices[i]);
+    }
+
+
 
     vector<pcXYZI> pcScans;
     std::vector<Eigen::MatrixXf> rangeImgs;
@@ -33,13 +54,12 @@ int main()
     ptIDimgs.resize(pcScans.size());
     ptTypeImgs.resize(pcScans.size());
 
-    lidarOdometryClass lidarOdo;
     for(int i=0 ; i<pcScans.size() ; i++)
     {
         pcXYZIptr pcScan (new pcXYZI(pcScans[i]));
-        lidarOdo.getRangeAndptIdImage(pcScan,rangeImgs[i],ptIDimgs[i] );
+        lidarOdoClas.getRangeAndptIdImage(pcScan,rangeImgs[i],ptIDimgs[i] );
         cout<<"/////////////////////////////////////////////////"<<endl;
-        lidarOdo.calculateSmoothness(rangeImgs[i],ptTypeImgs[i]);
+        lidarOdoClas.calculateSmoothness(rangeImgs[i],ptTypeImgs[i]);
 //        cout<<ptTypeImgs[i]<<endl;
         pcRGBptr pcColorScan(new pcRGB());
         copyPointCloud(*pcScan, *pcColorScan);

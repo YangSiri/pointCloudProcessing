@@ -31,6 +31,9 @@
 typedef pcl::PointCloud<pcl::PointXYZI>::Ptr  pcXYZIptr;
 typedef pcl::PointCloud<pcl::PointXYZI>  pcXYZI;
 
+typedef pcl::PointCloud<pcl::PointXYZ>::Ptr  pcXYZptr;
+typedef pcl::PointCloud<pcl::PointXYZ>  pcXYZ;
+
 typedef pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcRGBptr;
 typedef pcl::PointCloud<pcl::PointXYZRGB> pcRGB;
 
