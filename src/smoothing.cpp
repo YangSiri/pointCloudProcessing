@@ -176,6 +176,7 @@ bool preprocess::downSample(pcXYZIptr cloud, pcXYZIptr cloud_new)
     voxGrd.filter(*cloud_new);
 }
 
+//incremental large plane segmentation
 bool preprocess::planeSeg( pcXYZIptr inputCloud,
                           std::vector<pcXYZI> &cloud_planes)
 {
@@ -217,7 +218,11 @@ bool preprocess::planeSeg( pcXYZIptr inputCloud,
         extracIndice.filter(planeCloud);
 
         if(planeCloud.points.size() < 1000)
+        {
+            cout<<"Oops, not enough points on this plane"<<endl;
             break;
+        }
+
         cloud_planes.push_back(planeCloud);
 
         ///剔除平面点云

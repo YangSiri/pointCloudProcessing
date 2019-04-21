@@ -45,6 +45,7 @@ public:
     bool xyz2pc(std::string txtpath, pcXYZI &origiCloud);
 
     bool readpcfileFromFolder(std::string folder,std::vector<pcXYZI> &pcScans);
+
     ///类模板只能定义在*.h(*.hpp)文件中
     template <typename ptType>
     bool visualize(const typename pcl::PointCloud <ptType>::ConstPtr pointCloud, int id, std::string name)

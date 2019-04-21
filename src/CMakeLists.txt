@@ -1,5 +1,5 @@
 #PCL 1.8.1
-find_package( PCL 1.8.1 REQUIRED )
+find_package( PCL 1.8.1 REQUIRED)
 add_definitions( ${PCL_DEFINITIONS} )
 INCLUDE_DIRECTORIES( ${PCL_INCLUDE_DIRS} )
 LINK_LIBRARIES( ${PCL_LIBRARIES_DIRS} )
@@ -9,27 +9,69 @@ LINK_LIBRARIES( ${PCL_LIBRARIES_DIRS} )
 set(BOOST_ROOT "/opt/boost")
 find_package(Boost REQUIRED COMPONENTS system filesystem)
 include_directories(${Boost_INCLUDE_DIRS})
+
 #eigen3
 find_package(Eigen3 REQUIRED)
 #add_definitions(${EIGEN_DEFINITIONS})
 include_directories(${EIGEN_INCLUDE_DIR})
 
+
+find_package(octomap REQUIRED)
+include_directories(${OCTOMAP_INCLUDE_DIRS})
+
+#opencv
+find_package(OpenCV  REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS})
+LINK_LIBRARIES( ${OpenCV_LIBRARY_DIRS} )
+
+# Glog
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(glog libglog REQUIRED)
+
+# Attempt to find catkinized kindr
+find_package(kindr QUIET)
+if(NOT kindr_FOUND)
+    # Attempt to find package-based kindr
+    pkg_check_modules(kindr kindr REQUIRED)
+endif()
+
+include_directories(
+        include
+        include/curves
+        ${kindr_INCLUDE_DIRS}
+)
+
 #add libraries
-add_library(smooth SHARED smoothing.cpp)
-target_link_libraries(smooth ${PCL_LIBRARIES} ${Boost_LIBRARIES})
+add_library(polynomial_splines_traits SHARED polynomial_splines_traits.cpp)
+target_link_libraries(polynomial_splines_traits ${Boost_LIBRARIES} glog ${OpenCV_LIBRARIES})
 
-add_library(pcaAnalysis SHARED pcaAnalysis.cpp )
-target_link_libraries(pcaAnalysis smooth ${PCL_LIBRARIES} )
+##add libraries
+#add_library(smooth SHARED smoothing.cpp)
+#target_link_libraries(smooth ${PCL_LIBRARIES} ${Boost_LIBRARIES})
+#
+#add_library(pcaAnalysis SHARED pcaAnalysis.cpp )
+#target_link_libraries(pcaAnalysis smooth ${PCL_LIBRARIES} )
+#
+#add_library(buildingFacadeExtraction SHARED buildingFacadeExtraction.cpp )
+#target_link_libraries(buildingFacadeExtraction pcaAnalysis smooth ${PCL_LIBRARIES} )
+#
+#add_library(lidarOdometryLib SHARED lidarOdometry.cpp)
+#target_link_libraries(lidarOdometryLib smooth ${PCL_LIBRARIES})
+#
+#add_library(pcapReader SHARED pcapReader.cpp)
+#target_link_libraries(pcapReader ${PCL_LIBRARIES} PacketDriver PacketDecoder)
+#
+#
+##add excutables
+#add_executable(lidarOdometry mainFunc.cpp)
+#target_link_libraries(lidarOdometry lidarOdometryLib pcapReader)
 
-add_library(buildingFacadeExtraction SHARED buildingFacadeExtraction.cpp )
-target_link_libraries(buildingFacadeExtraction pcaAnalysis smooth ${PCL_LIBRARIES} )
 
-add_library(lidarOdometryLib SHARED lidarOdometry.cpp)
-target_link_libraries(lidarOdometryLib smooth ${PCL_LIBRARIES})
 
-add_library(pcapReader SHARED pcapReader.cpp)
-target_link_libraries(pcapReader ${PCL_LIBRARIES} PacketDriver PacketDecoder)
-
-#add excutables
-add_executable(lidarOdometry mainFunc.cpp)
-target_link_libraries(lidarOdometry lidarOdometryLib pcapReader)
+add_executable(dynaObjTest dynaObjTest.cpp)
+target_link_libraries(dynaObjTest ${OCTOMAP_LIBRARIES}
+        ${PCL_LIBRARIES}
+        ${Boost_LIBRARIES}
+        glog
+        ${OpenCV_LIBRARIES}
+        polynomial_splines_traits)
