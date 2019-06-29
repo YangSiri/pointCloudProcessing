@@ -34,6 +34,9 @@
 #include <opencv2/video/tracking.hpp>
 //#include <opencv2/legacy/legacy.hpp>
 
+using namespace cv;
+
+
 namespace dbscan3d {
     static const inline double distance(pcl::PointXYZI p1, pcl::PointXYZI p2) {
         double dx = p2.x - p1.x;
@@ -265,7 +268,7 @@ typedef PointXYZIRPYT  PointTypePose;
 namespace tools{
 
     /**
-     * 利用6D位姿将点云进行转换
+     * 利用6D位姿将点云进行转换 from LeGO-LOAM （坐标轴不同于VLP16）
      */
     pcXYZIptr transformPointCloud(pcXYZIptr cloudIn, PointTypePose* transformIn){
 
@@ -397,18 +400,23 @@ namespace tools{
         }
     }
 
+
     /**
      * 截取点云 降采样 简单欧氏距离聚类
      * @param pc
      * @param pcClusterCentos
+     * @param pcClusterMinpts
+     * @param pcClusterMaxpts
+     * @return
      */
-    void extractClusterEuclidean(pcXYZIptr pc, pcXYZIptr pcClusterCentos){
+    int extractClusterEuclidean(pcXYZIptr pc, pcXYZIptr pcClusterCentos,
+                                 pcXYZIptr pcClusterMinpts, pcXYZIptr pcClusterMaxpts){
 
         pcl::ConditionAnd<pcl::PointXYZI>::Ptr condi(new pcl::ConditionAnd<pcl::PointXYZI>());
         condi->addComparison(pcl::FieldComparison<pcl::PointXYZI>::ConstPtr
-                                     (new pcl::FieldComparison<pcl::PointXYZI>("x",pcl::ComparisonOps::GT, -10.0)));
+                                     (new pcl::FieldComparison<pcl::PointXYZI>("x",pcl::ComparisonOps::GT, -16.0)));
         condi->addComparison(pcl::FieldComparison<pcl::PointXYZI>::ConstPtr
-                                     (new pcl::FieldComparison<pcl::PointXYZI>("x",pcl::ComparisonOps::LT, 10.0)));
+                                     (new pcl::FieldComparison<pcl::PointXYZI>("x",pcl::ComparisonOps::LT, 16.0)));
         condi->addComparison(pcl::FieldComparison<pcl::PointXYZI>::ConstPtr
                                      (new pcl::FieldComparison<pcl::PointXYZI>("y",pcl::ComparisonOps::GT, -10.0)));
         condi->addComparison(pcl::FieldComparison<pcl::PointXYZI>::ConstPtr
@@ -436,8 +444,10 @@ namespace tools{
 //        radRemv.setMinNeighborsInRadius(5);
 //        radRemv.filter(*pc);
 
+        pcXYZIptr pcNoheights(new pcXYZI());///z=0 for better cluster
+        pcl::copyPointCloud(*pc, *pcNoheights);
         for(int i=0; i<pc->points.size(); i++)
-            pc->points[i].z=0;
+            pcNoheights->points[i].z=0;
 
         pcl::search::KdTree<pcl::PointXYZI>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZI>);
         tree->setInputCloud(pc);
@@ -445,12 +455,12 @@ namespace tools{
         pcl::EuclideanClusterExtraction<pcl::PointXYZI> eucliClusterExt;
         eucliClusterExt.setClusterTolerance(0.2);
         eucliClusterExt.setMinClusterSize(30);
-        eucliClusterExt.setMaxClusterSize(300);
+        eucliClusterExt.setMaxClusterSize(500);
         eucliClusterExt.setSearchMethod(tree);
-        eucliClusterExt.setInputCloud(pc);
+        eucliClusterExt.setInputCloud(pcNoheights);
         eucliClusterExt.extract(clusters);
 
-        cout<<"Euclidean cluster size : "<<clusters.size()<<endl;
+        cout<<"Original Euclidean cluster size : "<<clusters.size()<<endl;
         if(clusters.size() > 3)
             for(int i=0; i<clusters.size(); i++)
             {
@@ -463,141 +473,217 @@ namespace tools{
                 pcl::compute3DCentroid(*pcSingleCluster,centroVec);
                 pcl::getMinMax3D(*pcSingleCluster, min, max);
 
-                if(max.x-min.x>10 || max.y-min.y>10)
+                if(max.x-min.x>3 || max.y-min.y>3 || max.z-min.z<0.6 )
                     continue;
+//                if(max.x-min.x>8 || max.y-min.y>8 || max.z-min.z<0.6 || max.z-min.z>5)
+//                    continue;
                 centro.x = centroVec[0];
                 centro.y = centroVec[1];
                 centro.z = centroVec[2];
                 pcClusterCentos->push_back(centro);
+                pcClusterMinpts->push_back(min);
+                pcClusterMaxpts->push_back(max);
             }
 
+            return pcClusterCentos->points.size();
 
     }
 
 
-    /**
-     *
-     */
-    using namespace cv;
-    bool kalmanfilterTracking2Dopencv(){
-        const int stateNum=4;
-        const int measureNum=2;
-        KalmanFilter KF(stateNum, measureNum, 0);
-        KF.transitionMatrix = (Mat_<float>(4,4)<<1,0,0.1,0, 0,1,0,0.1, 0,0,1,0, 0,0,0,1);
-        setIdentity(KF.measurementMatrix);
-        setIdentity(KF.processNoiseCov, Scalar::all(1e-5));
-        setIdentity(KF.measurementNoiseCov, Scalar::all(1e-1));
-        setIdentity(KF.errorCovPost, Scalar::all(1));
-        Mat measurement = Mat::zeros(measureNum, 1, CV_32F);
-
-        KF.statePost = (Mat_<float>(4,1)<<1,0,0,0);
-
-    }
 
     /**
      * just for visualization multiple bounding boxes
      */
-    pcXYZIptr pcCluster_Centros(new pcXYZI());
+    pcXYZIptr pcCluster_Centros(new pcXYZI());//tracked centros
+    pcXYZIptr pcCluster_Mins(new pcXYZI());
+    pcXYZIptr pcCluster_Maxs(new pcXYZI());
+//    pcXYZIptr pclastmeasurements_(new pcXYZI());
+    std::vector<pcXYZI> vecTrackedallmeasurements_;
     void viewClusterbox(pcl::visualization::PCLVisualizer& viewer){
+
         viewer.removeAllShapes();
 
-        for(int i=0; i<pcCluster_Centros->points.size(); i++)
+        for(int i=0; i<pcCluster_Mins->points.size(); i++)
         {
 
+//            Eigen::Vector3f centro;
+//            centro[0] = pcCluster_Centros->points[i].x;
+//            centro[1] = pcCluster_Centros->points[i].y;
+//            centro[2] = pcCluster_Centros->points[i].z;
+//            const Eigen::Quaternionf noRotation(Eigen::Quaternionf::Identity());
+//            viewer.addCube(centro, noRotation, 1,1,1, std::to_string(i+100));
+
+            viewer.addCube(pcCluster_Mins->points[i].x, pcCluster_Maxs->points[i].x,
+                           pcCluster_Mins->points[i].y, pcCluster_Maxs->points[i].y,
+                           pcCluster_Mins->points[i].z, pcCluster_Maxs->points[i].z,
+                           0,0,255, std::to_string(i));
+            viewer.setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION,
+                                               pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME,
+                                               std::to_string(i));
+
+
+        }
+
+        //tracked centers
+        for(int i=0; i<pcCluster_Centros->points.size(); i++)
+        {
             Eigen::Vector3f centro;
             centro[0] = pcCluster_Centros->points[i].x;
             centro[1] = pcCluster_Centros->points[i].y;
             centro[2] = pcCluster_Centros->points[i].z;
             const Eigen::Quaternionf noRotation(Eigen::Quaternionf::Identity());
+            viewer.addCube(centro, noRotation, 1,1,1, std::to_string(i+100));
 
-            viewer.addCube(centro, noRotation, 1,1,1, std::to_string(i));
+            for (int j = 0; j < vecTrackedallmeasurements_[i].points.size()-1; ++j) {
+
+                viewer.addLine(vecTrackedallmeasurements_[i].points[j],
+                               vecTrackedallmeasurements_[i].points[j+1], 0,255,0, std::to_string(i+1000+j*30));
+
+                viewer.setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH,8,
+                                                   std::to_string(i+1000+j*30));
+            }
+//            viewer.addArrow(pclastmeasurements_->points[i], pcCluster_Centros->points[i], 255,0,0, std::to_string(i+1000));
+
+//            pcl::ModelCoefficients sphere_coeff;
+//            sphere_coeff.values.resize (4);    // We need 4 values
+//            sphere_coeff.values[0] = pcCluster_Centros->points[i].x;
+//            sphere_coeff.values[1] = pcCluster_Centros->points[i].y;
+//            sphere_coeff.values[2] = pcCluster_Centros->points[i].z;
+//            sphere_coeff.values[2] = 0.6;
+//            viewer.addSphere(sphere_coeff,std::to_string(i+100));
+
             viewer.setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION,
                                                pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME,
-                                               std::to_string(i));
+                                               std::to_string(i+100));
 
         }
+
         viewer.spinOnce(100);
+
         pcCluster_Centros.reset(new pcXYZI());
+        pcCluster_Mins.reset(new pcXYZI());
+        pcCluster_Maxs.reset(new pcXYZI());
+        vecTrackedallmeasurements_.clear();
     }
+
 
 
     /**
      * not finished yet
+     * 多项式样条曲线拟合函数
      */
-    typedef typename curves::PolynomialSplineQuinticVector3Curve::ValueType ValueType;
-//    typedef typename curves::PolynomialSplineCubicVector6Curve::ValueType ValueType;
+//    typedef typename curves::PolynomialSplineQuinticVector3Curve::ValueType ValueType;
+    typedef typename curves::PolynomialSplineCubicVector6Curve::ValueType ValueType;
     typedef typename curves::Time Time;
     bool polySplineCubicVec6curveFitting(std::vector<PointTypePose> keyposes){
 
-//        curves::PolynomialSplineCubicVector6Curve curveCubic;
-        curves::PolynomialSplineQuinticVector3Curve curveQuin;
+        curves::PolynomialSplineCubicVector6Curve curveCubic;
+//        curves::PolynomialSplineQuinticVector3Curve curveQuin;
         std::vector<Time> times;
         std::vector<ValueType> values;
 
-        //位移拟合
-        times.push_back(0.0);
-//        values.push_back( ValueType(0.0, 0.0, 0.0) );
-        values.push_back(ValueType(keyposes[0].x, keyposes[0].y, keyposes[0].z));
-        times.push_back(0.4);
-        values.push_back(ValueType(keyposes[1].x, keyposes[1].y, keyposes[1].z));
-        times.push_back(0.8);
-        values.push_back(ValueType(keyposes[2].x, keyposes[2].y, keyposes[2].z));
-        times.push_back(1.2);
-        values.push_back(ValueType(keyposes[3].x, keyposes[3].y, keyposes[3].z));
-
-
-        curveQuin.fitCurve(times, values);
-        curveQuin.clear();
-        std::vector<Time>().swap(times);
-        std::vector<ValueType>().swap(values);
-
-        FILE *fp;
-        fp = fopen("/home/cyz/Data/legoloam/poses/keyposesFinalsplined.txt","a");
-        std::vector<PointTypePose> keyposesSplineKnots;
-        ValueType value;
-        keyposesSplineKnots.resize(3);
-        for(double t=times[1]; t<=times[2]; t+=0.1)
-        {
-            curveQuin.evaluate(value,t);
-            keyposesSplineKnots[0].x = value[0];
-        }
-
-
-        //角度拟合
-        times.push_back(0.0);
-        values.push_back(ValueType(keyposes[0].roll, keyposes[0].pitch, keyposes[0].yaw));
-        times.push_back(0.4);
-        values.push_back(ValueType(keyposes[1].roll, keyposes[1].pitch, keyposes[1].yaw));
-        times.push_back(0.8);
-        values.push_back(ValueType(keyposes[2].roll, keyposes[2].pitch, keyposes[2].yaw));
-        times.push_back(1.2);
-        values.push_back(ValueType(keyposes[3].roll, keyposes[3].pitch, keyposes[3].yaw));
-
-        curveQuin.fitCurve(times,values);
+//        //位移拟合
+//        times.push_back(0.0);
+////        values.push_back( ValueType(0.0, 0.0, 0.0) );
+//        values.push_back(ValueType(keyposes[0].x, keyposes[0].y, keyposes[0].z));
+//        times.push_back(0.4);
+//        values.push_back(ValueType(keyposes[1].x, keyposes[1].y, keyposes[1].z));
+//        times.push_back(0.8);
+//        values.push_back(ValueType(keyposes[2].x, keyposes[2].y, keyposes[2].z));
+//        times.push_back(1.2);
+//        values.push_back(ValueType(keyposes[3].x, keyposes[3].y, keyposes[3].z));
+//
+//
+//        curveCubic.fitCurve(times, values);
+//        curveCubic.clear();
+//        std::vector<Time>().swap(times);
+//        std::vector<ValueType>().swap(values);
+//
+//        FILE *fp;
+//        fp = fopen("/home/cyz/Data/legoloam/poses/keyposesFinalsplined.txt","a");
+//        std::vector<PointTypePose> keyposesSplineKnots;
+//        ValueType value;
+//        keyposesSplineKnots.resize(3);
+//        for(double t=times[1]; t<=times[2]; t+=0.1)
+//        {
+//            curveCubic.evaluate(value,t);
+//            keyposesSplineKnots[0].x = value[0];
+//        }
+//
+//
+//        //角度拟合
+//        times.push_back(0.0);
+//        values.push_back(ValueType(keyposes[0].roll, keyposes[0].pitch, keyposes[0].yaw));
+//        times.push_back(0.4);
+//        values.push_back(ValueType(keyposes[1].roll, keyposes[1].pitch, keyposes[1].yaw));
+//        times.push_back(0.8);
+//        values.push_back(ValueType(keyposes[2].roll, keyposes[2].pitch, keyposes[2].yaw));
+//        times.push_back(1.2);
+//        values.push_back(ValueType(keyposes[3].roll, keyposes[3].pitch, keyposes[3].yaw));
+//
+//        curveCubic.fitCurve(times,values);
 
 
 
     }
 
 
+
+    /***
+     * 寻找最近点的位置
+     * @param source
+     * @param pctargetlist
+     * @return
+     */
+    int findNearestNeighborIndice(pcl::PointXYZI source, pcXYZIptr pctargetlist){
+
+        double mindis=100;
+        int listsize= pctargetlist->points.size();
+
+        pcl::PointXYZI curpt;
+        std::vector<double> curdis;
+        curdis.resize(listsize, 0);
+//        std::vector<double>().swap(curdis);
+        for(int i=0; i<listsize; i++)
+        {
+            curpt = pctargetlist->points[i];
+            if( curpt.intensity > 9000)
+                continue;
+            curdis[i] = (dbscan2d::distance(source.x, source.y, curpt.x, curpt.y));
+            if(curdis[i] < mindis)
+                mindis = curdis[i];
+        }
+
+        for(int i=0; i<listsize; i++)
+            if(curdis[i] == mindis)
+                return i;
+        return 0;//if no points left
+
+    }
+
+
     /**
-     * each tracker corresponding to one cluster
+     * each tracker corresponding to one cluster with one KF
      */
     class clusterTracker{
+
     private:
-        pcXYZIptr centrosMeasurements_pc;
-        pcXYZIptr centrosPredicsXYVxVy_pc;
+        pcXYZIptr centrosMeasurements_pc;//x,y
+        pcXYZIptr centrosPredicsXYVxVy_pc;//z=Vx, intensity=Vy
         int trackedtimes;
+        int lostTimes;
         int trackerID;
         bool isTracked;
+        bool isLost;
         KalmanFilter kalmantracker;
+        pcl::PointXYZI predpt;
 
 
     public:
         clusterTracker(int id, pcl::PointXYZI centro)
         {
             initialization();
-            centrosMeasurements->points.push_back(centro);
+            centrosMeasurements_pc->points.push_back(centro);
             trackerID = id;
 
             //tracker 初始化（仅执行一次）
@@ -608,22 +694,50 @@ namespace tools{
             setIdentity(kalmantracker.measurementNoiseCov, Scalar::all(1e-1));
             setIdentity(kalmantracker.errorCovPost, Scalar::all(1));
             kalmantracker.statePost= (Mat_<float>(4,1)<< centro.x, centro.y, 0 ,0);//初始速度为0
-            cout<<"kalman tracker initialized "<<endl;
+            cout<<"kalman tracker initialized. ID : "<<trackerID<<endl;
 
         }
 
-        initialization() {
+        void initialization() {
 
-            isTracked = true;
-            trackedtimes = 1;
-            centrosMeasurements.reset( new pcXYZI());
-            centrosPredics.reset( new pcXYZI());
+            isTracked = false;
+            isTracked = false;
+            trackedtimes = 0;
+            lostTimes = 0;
+            centrosMeasurements_pc.reset( new pcXYZI());
+            centrosPredicsXYVxVy_pc.reset( new pcXYZI());
+
         }
-        ~clusterTracker(){};
+        ~clusterTracker(){}
 
+
+        pcl::PointXYZI predicState(){
+
+            Mat pred = kalmantracker.predict();
+            predpt.x = pred.at<float>(0);
+            predpt.y = pred.at<float>(1);
+            predpt.z = pred.at<float>(2);
+            predpt.intensity = pred.at<float>(3);
+            if(!isLost)
+                centrosPredicsXYVxVy_pc->points.push_back(predpt);
+
+            cout<<"\n-----------tracker ID : "<<trackerID<<"---------------"<<endl;
+            cout<<"-predicted position: ("<<pred.at<float>(0)<<", "<<pred.at<float>(1)<<") "<<endl;
+            cout<<"---predicted Velocity: ("<<pred.at<float>(2)<<", "<<pred.at<float>(3)<<") "<<endl;
+
+            return predpt;
+        }
+
+        pcXYZI getpreMeasurements(){
+
+//            int size = centrosMeasurements_pc->points.size();
+            return *centrosMeasurements_pc;
+        }
 
         void addmeasurements(pcl::PointXYZI centroMeasure){
 
+            isTracked = true;
+            isLost = false;
             centrosMeasurements_pc->points.push_back(centroMeasure);
             trackedtimes++;
 
@@ -632,10 +746,53 @@ namespace tools{
             measurement.at<float>(1) = centroMeasure.y;
 
             kalmantracker.correct(measurement);
-            cout<<"corrected: ("<<measurement.at<float>(0)<<", "<<measurement.at<float>(1)<<") "<<endl;
+            cout<<">>>tracked object ID "<<trackerID<<" ---"<<trackedtimes<<" times so far."<<endl;
+//            cout<<"corrected: ("<<measurement.at<float>(0)<<", "<<measurement.at<float>(1)<<") "<<endl;
+            lostTimes =0 ;
         }
 
 
+        int getTrackedtimes(){
+
+            isLost = true;
+            lostTimes++;
+            if(lostTimes > 3){//erase this tracker
+
+                if(trackedtimes > 30){//保存losted跟踪的轨迹信息
+                    fstream checkfile ;
+                    std::string path = "/home/cyz/Data/legoloam/poses/trackinginfo/"+std::to_string(trackerID)+".txt";
+                    checkfile.open(path, ios::in);
+
+                    if(!checkfile){
+
+                    }else{
+                        path = "/home/cyz/Data/legoloam/poses/trackinginfo/"+std::to_string(trackerID)+"_"+
+                               std::to_string(random())+".txt";
+                    }
+                    checkfile.close();
+
+                    int measureSize = centrosMeasurements_pc->points.size();
+                    int predicSize = centrosPredicsXYVxVy_pc->points.size();
+
+//                    cout<<"measureSize : "<<measureSize<<" ; "<<"predicSize : "<<predicSize<<endl;
+
+                    const char* pathtxt = path.c_str();
+                    FILE *fp;
+                    fp = fopen(pathtxt,"w");
+                    for(int i=0; i<measureSize; i++)
+                        fprintf(fp,"%lf %lf %lf %lf %lf %lf\n",
+                                centrosMeasurements_pc->points[i].x, centrosMeasurements_pc->points[i].y,
+                                centrosPredicsXYVxVy_pc->points[i].x, centrosPredicsXYVxVy_pc->points[i].y,
+                                centrosPredicsXYVxVy_pc->points[i].z, centrosPredicsXYVxVy_pc->points[i].intensity);
+
+                    fclose(fp);
+                }
+                return -1;
+            }
+
+            else
+            return trackedtimes;
+        }
 
 
     };

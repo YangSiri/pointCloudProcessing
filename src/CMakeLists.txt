@@ -28,6 +28,11 @@ LINK_LIBRARIES( ${OpenCV_LIBRARY_DIRS} )
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(glog libglog REQUIRED)
 
+#gtsam
+find_package(GTSAM REQUIRED)
+include_directories(${GTSAM_INCLUDE_DIR})
+LINK_DIRECTORIES(${GTSAM_LIBRARY_DIRS})
+
 # Attempt to find catkinized kindr
 find_package(kindr QUIET)
 if(NOT kindr_FOUND)
@@ -35,15 +40,26 @@ if(NOT kindr_FOUND)
     pkg_check_modules(kindr kindr REQUIRED)
 endif()
 
+#sophus
+find_package(Sophus REQUIRED)
+
 include_directories(
         include
         include/curves
         ${kindr_INCLUDE_DIRS}
+        ${Sophus_INCLUDE_DIRS}
 )
 
 #add libraries
-add_library(polynomial_splines_traits SHARED polynomial_splines_traits.cpp)
+add_library(polynomial_splines_traits SHARED hpp-cpp/polynomial_splines_traits.cpp)
 target_link_libraries(polynomial_splines_traits ${Boost_LIBRARIES} glog ${OpenCV_LIBRARIES})
+
+add_library(cubicHermiteSE3curve SHARED CubicHermiteSE3Curve.cpp
+        hpp-cpp/helpers.cpp
+        hpp-cpp/KeyGenerator.cpp
+        hpp-cpp/SlerpSE3Curve.cpp
+        hpp-cpp/SE3Curve.cpp)
+target_link_libraries(cubicHermiteSE3curve ${Boost_LIBRARIES} glog )
 
 ##add libraries
 #add_library(smooth SHARED smoothing.cpp)
@@ -69,9 +85,13 @@ target_link_libraries(polynomial_splines_traits ${Boost_LIBRARIES} glog ${OpenCV
 
 
 add_executable(dynaObjTest dynaObjTest.cpp)
-target_link_libraries(dynaObjTest ${OCTOMAP_LIBRARIES}
+target_link_libraries(dynaObjTest
+        ${OCTOMAP_LIBRARIES}
         ${PCL_LIBRARIES}
         ${Boost_LIBRARIES}
         glog
         ${OpenCV_LIBRARIES}
-        polynomial_splines_traits)
+        polynomial_splines_traits
+        cubicHermiteSE3curve
+        ${Sophus_LIBRARIES}
+        gtsam)

@@ -31,6 +31,13 @@ bool buildingFacadeExtractor::groundFilter(pcXYZIptr origiCloud, pcXYZIptr nonGr
     return true;
 }
 
+/**
+ * project pointcloud to specific plane
+ * @param inputCloud
+ * @param paras
+ * @param outputCloud
+ * @return
+ */
 bool buildingFacadeExtractor::planeProjection(pcXYZIptr inputCloud, pcl::ModelCoefficients::Ptr paras,
                                               pcXYZIptr outputCloud)
 {
@@ -43,6 +50,12 @@ bool buildingFacadeExtractor::planeProjection(pcXYZIptr inputCloud, pcl::ModelCo
     return true;
 }
 
+/**
+ *
+ * @param inputcloud
+ * @param iterTimes
+ * @return
+ */
 bool buildingFacadeExtractor::meanShiftClustering(pcXYZIptr inputcloud, int iterTimes)
 {
     pcXYZI vecCloud;///储存每一点的mean shift vector
@@ -118,7 +131,12 @@ bool buildingFacadeExtractor::meanShiftClustering(pcXYZIptr inputcloud, int iter
 
 }
 
-
+/**
+ *
+ * @param inputCloud
+ * @param gridResolution
+ * @return
+ */
 bool buildingFacadeExtractor::constructVoxels(pcXYZIptr inputCloud, float gridResolution)
 {
     pcl::PointXYZI minPt, maxPt;

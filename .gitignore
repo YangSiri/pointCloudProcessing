@@ -11,3 +11,5 @@ cmake-build-debug/
 data/
 =======
 >>>>>>> master
+
+cmake-build-release/

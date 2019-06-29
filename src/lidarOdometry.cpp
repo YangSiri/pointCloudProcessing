@@ -11,6 +11,13 @@
 
 using namespace lidarOdometry;
 
+/**
+ *
+ * @param inputCloud
+ * @param rangeImg
+ * @param ptIdImg
+ * @return
+ */
 bool lidarOdometryClass::getRangeAndptIdImage(pcXYZIptr inputCloud, Eigen::MatrixXf &rangeImg, Eigen::MatrixXf &ptIdImg)
 {
     pcRGBptr colorCloud (new pcRGB());
@@ -104,6 +111,12 @@ bool lidarOdometryClass::getRangeAndptIdImage(pcXYZIptr inputCloud, Eigen::Matri
     std::cout<<rangeImg<<count<<endl;
 }
 
+/**
+ *
+ * @param rangeImg
+ * @param ptTypeImg
+ * @return
+ */
 bool lidarOdometryClass::calculateSmoothness(Eigen::MatrixXf rangeImg, Eigen::MatrixXf &ptTypeImg)
 {
     Eigen::MatrixXf smoothnessImg = Eigen::MatrixXf::Zero(16,900);
@@ -184,10 +197,17 @@ bool lidarOdometryClass::calculateCurvature(Eigen::MatrixXf ptIDimg)
     }
 }
 
+/**
+ *
+ * @param posfile
+ * @param postimeStamps
+ * @param translations
+ * @param rotations
+ * @return
+ */
 bool lidarOdometryClass::readposefile(std::string posfile, std::vector<lidarOdometry::timeStamp> &postimeStamps,
                                       std::vector<Eigen::Vector3d> &translations,
-                                      std::vector<Eigen::Quaterniond> &rotations)
-{
+                                      std::vector<Eigen::Quaterniond> &rotations) {
     std::ifstream ifs(posfile);
     char line[256];
 
@@ -211,8 +231,14 @@ bool lidarOdometryClass::readposefile(std::string posfile, std::vector<lidarOdom
     return true;
 }
 
-bool lidarOdometryClass::vector2pointcloudXYZ(std::vector<Eigen::Vector3d> vecPoints, pcXYZptr pcPoints)
-{
+/**
+ *
+ * @param vecPoints
+ * @param pcPoints
+ * @return
+ */
+bool lidarOdometryClass::vector2pointcloudXYZ(std::vector<Eigen::Vector3d> vecPoints, pcXYZptr pcPoints) {
+
     unsigned long ptSize = vecPoints.size();
     pcPoints->resize(ptSize);
 //    pcl::PointXYZ tmpPt;
@@ -230,8 +256,14 @@ bool lidarOdometryClass::vector2pointcloudXYZ(std::vector<Eigen::Vector3d> vecPo
     return true;
 }
 
-bool lidarOdometryClass::linefitting(pcXYZ inputCloud, std::vector<std::vector<int>> &linesIndices)
-{
+/**
+ *
+ * @param inputCloud
+ * @param linesIndices
+ * @return
+ */
+bool lidarOdometryClass::linefitting(pcXYZ inputCloud, std::vector<std::vector<int>> &linesIndices) {
+
     int cloudSize = inputCloud.points.size();
     pcXYZptr tempCloud (new pcXYZ);
     pcl::copyPointCloud(inputCloud, *tempCloud);
