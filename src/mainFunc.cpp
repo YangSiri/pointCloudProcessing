@@ -9,16 +9,53 @@
 
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
+#include <pcap.h>
+#include <stdio.h>
+#include <string>
+
 
 using namespace lidarOdometry;
 using namespace std;
 using namespace pcl;
 
+bool pcapfile2xyz(char* filepath){
+
+    char errbuf[100];
+    pcap_t *pfile = pcap_open_offline(filepath, errbuf);
+    if (NULL == pfile) {
+        printf("%s\n", errbuf);
+        return -1;
+    }
+    pcap_pkthdr *pkthdr = new pcap_pkthdr;
+    const u_char *pktdata = 0;
+    while (1){
+        pktdata = pcap_next(pfile, pkthdr);
+
+        if(NULL==pktdata)
+            break;
+        cout<<"\n@@@ new packat   ";
+        printf("%d\n", pkthdr->caplen);
+
+        for (bpf_u_int32 i = 0; i < pkthdr->caplen; ++i) {
+            if (0 < i && 0 == i % 16) printf("\n");
+//            printf("%2x ", pktdata[i]);
+            printf("%lf ", pktdata[i]);
+        }
+    }
+
+    delete pkthdr;
+    pcap_close(pfile);
+
+}
+
 int main()
 {
-    char* pcapfilepath="../data/test.pcap";
+    char* pcapfilepath="/home/cyz/Downloads/2014-11-10-10-48-31_Velodyne-VLP_20Hz_HeckerPass.pcap";
+    pcapfile2xyz(pcapfilepath);
+
     pcapReader pcapReaderClass;
     int flag = pcapReaderClass.readpcapfile(pcapfilepath);
+
 
     lidarOdometryClass lidarOdoClas;
     string posfile = "../data/pose.txt";

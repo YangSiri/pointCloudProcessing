@@ -15,6 +15,7 @@ namespace lidarOdometry
         timeStamp(long int sec_, long int usec_):sec(sec_), usec(usec_){}
         long int sec;
         long int usec;
+
         long int operator - (const timeStamp& rhs)
         {
             return (sec-rhs.sec)*1000000 + usec-rhs.usec;

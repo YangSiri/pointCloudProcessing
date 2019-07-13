@@ -61,26 +61,26 @@ add_library(cubicHermiteSE3curve SHARED CubicHermiteSE3Curve.cpp
         hpp-cpp/SE3Curve.cpp)
 target_link_libraries(cubicHermiteSE3curve ${Boost_LIBRARIES} glog )
 
-##add libraries
-#add_library(smooth SHARED smoothing.cpp)
-#target_link_libraries(smooth ${PCL_LIBRARIES} ${Boost_LIBRARIES})
-#
-#add_library(pcaAnalysis SHARED pcaAnalysis.cpp )
-#target_link_libraries(pcaAnalysis smooth ${PCL_LIBRARIES} )
-#
-#add_library(buildingFacadeExtraction SHARED buildingFacadeExtraction.cpp )
-#target_link_libraries(buildingFacadeExtraction pcaAnalysis smooth ${PCL_LIBRARIES} )
-#
-#add_library(lidarOdometryLib SHARED lidarOdometry.cpp)
-#target_link_libraries(lidarOdometryLib smooth ${PCL_LIBRARIES})
-#
-#add_library(pcapReader SHARED pcapReader.cpp)
-#target_link_libraries(pcapReader ${PCL_LIBRARIES} PacketDriver PacketDecoder)
-#
-#
-##add excutables
-#add_executable(lidarOdometry mainFunc.cpp)
-#target_link_libraries(lidarOdometry lidarOdometryLib pcapReader)
+#add libraries
+add_library(smooth SHARED smoothing.cpp)
+target_link_libraries(smooth ${PCL_LIBRARIES} ${Boost_LIBRARIES})
+
+add_library(pcaAnalysis SHARED pcaAnalysis.cpp )
+target_link_libraries(pcaAnalysis smooth ${PCL_LIBRARIES} )
+
+add_library(buildingFacadeExtraction SHARED buildingFacadeExtraction.cpp )
+target_link_libraries(buildingFacadeExtraction pcaAnalysis smooth ${PCL_LIBRARIES} )
+
+add_library(lidarOdometryLib SHARED lidarOdometry.cpp)
+target_link_libraries(lidarOdometryLib smooth ${PCL_LIBRARIES})
+
+add_library(pcapReader SHARED pcapReader.cpp)
+target_link_libraries(pcapReader ${PCL_LIBRARIES} PacketDriver PacketDecoder)
+
+
+#@add excutables
+add_executable(lidarOdometry mainFunc.cpp)
+target_link_libraries(lidarOdometry lidarOdometryLib pcapReader pcap)
 
 
 

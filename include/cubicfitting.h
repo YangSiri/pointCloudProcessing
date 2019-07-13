@@ -24,7 +24,51 @@
 
 using namespace std;
 
-/*
+int readRPYposefromfile(std::string file, pcXYZIRPYTptr pcRPYpose){
+
+    PointTypePose ptRPY;
+    char line[256] ;
+    ifstream infile(file.c_str());
+    if(infile.is_open())
+    {
+        while(!infile.eof())
+        {
+            infile.getline(line,256);
+            sscanf(line, "%lf %f %f %f %f %f %f\n",&ptRPY.time, &ptRPY.x, &ptRPY.y, &ptRPY.z,
+                   &ptRPY.roll, &ptRPY.pitch, &ptRPY.yaw);
+            pcRPYpose->push_back(ptRPY);
+        }
+    }
+    infile.close();
+    int keyposeSize = pcRPYpose->points.size()-1;//最后一个位姿读了两遍
+
+    return keyposeSize;
+}
+int readQuanPosefromfile(std::string file, pcXYZIRPYTptr pcQuanpose){
+
+    /**
+     * row=q.x  pitch=q.y  yaw=q.z  intensity=q.z
+     */
+    PointTypePose ptRPY;
+    char line[256] ;
+    ifstream infile(file.c_str());
+    if(infile.is_open())
+    {
+        while(!infile.eof())
+        {
+            infile.getline(line,256);
+            sscanf(line, "%lf %f %f %f %f %f %f %f\n",&ptRPY.time, &ptRPY.x, &ptRPY.y, &ptRPY.z,
+                   &ptRPY.roll, &ptRPY.pitch, &ptRPY.yaw, &ptRPY.intensity);
+            pcQuanpose->push_back(ptRPY);
+        }
+    }
+    infile.close();
+    int keyposeSize = pcQuanpose->points.size()-1;//最后一个位姿读了两遍
+
+    return keyposeSize;
+}
+
+/**
  * from ETH Zurich @github/curves
  */
 using namespace curves;
@@ -32,7 +76,6 @@ typedef std::numeric_limits<double > dbl;
 typedef typename curves::CubicHermiteSE3Curve::ValueType ValueType;
 typedef typename curves::CubicHermiteSE3Curve::DerivativeType DerivativeType;
 typedef typename curves::Time Time;
-
 bool cubicHermitSE3fitting(vector<PointTypePose>&poses){
 
     CubicHermiteSE3Curve curve;
@@ -141,7 +184,114 @@ bool poselinearInterpolation(PointTypePose startpose, PointTypePose endpose, int
     return true;
 }
 
+PointTypePose linearposeInterpolateAtTimestamp(PointTypePose startpose, PointTypePose endpose, double timestamp){
 
+    double delta_t = endpose.time - startpose.time;
+    double increT = timestamp - startpose.time;
+
+    double deltatx = endpose.x - startpose.x;
+    double deltaty = endpose.y - startpose.y;
+    double deltatz = endpose.z - startpose.z;
+    Eigen::Vector3d deltatranslation(deltatx,deltaty,deltatz);
+
+    Eigen::Matrix3d startrotation=(
+            Eigen::AngleAxisd(startpose.roll, Eigen::Vector3d::UnitX())*
+            Eigen::AngleAxisd(startpose.pitch, Eigen::Vector3d::UnitY())*
+            Eigen::AngleAxisd(startpose.yaw, Eigen::Vector3d::UnitZ())
+    ).toRotationMatrix();
+
+    Eigen::Matrix3d endrotation=(
+            Eigen::AngleAxisd(startpose.roll, Eigen::Vector3d::UnitX())*
+            Eigen::AngleAxisd(startpose.pitch, Eigen::Vector3d::UnitY())*
+            Eigen::AngleAxisd(startpose.yaw, Eigen::Vector3d::UnitZ())
+    ).toRotationMatrix();
+    Eigen::AngleAxisd deltaR  (startrotation.inverse() * endrotation);
+
+
+    PointTypePose tmp_pose;
+    tmp_pose.x = startpose.x + deltatx*(increT/delta_t);
+    tmp_pose.y = startpose.y + deltaty*(increT/delta_t);
+    tmp_pose.z = startpose.z + deltatz*(increT/delta_t);
+
+    Eigen::AngleAxisd increR(deltaR.angle()*(increT/delta_t), deltaR.axis());
+    Eigen::Matrix3d Rotation = startrotation * increR;
+    Eigen::Vector3d eulars = Rotation.eulerAngles(2,1,0);
+
+    cout<<"Eular Angles :"<<eulars<<endl;
+    tmp_pose.roll = eulars(2);
+    tmp_pose.pitch = eulars(1);
+    tmp_pose.yaw = eulars(0);
+
+
+    if(abs(tmp_pose.roll - startpose.roll) >1 )
+        if(tmp_pose.roll < 0)
+            tmp_pose.roll = - M_PI - tmp_pose.roll;
+        else
+            tmp_pose.roll = M_PI - tmp_pose.roll;
+
+    if(abs(tmp_pose.pitch - startpose.pitch) >1 )
+        if(tmp_pose.pitch < 0)
+            tmp_pose.pitch = - M_PI - tmp_pose.pitch;
+        else
+            tmp_pose.pitch = M_PI - tmp_pose.pitch;
+
+    if(abs(tmp_pose.yaw - startpose.yaw) >1 )
+        if(tmp_pose.yaw < 0)
+            tmp_pose.yaw = - M_PI - tmp_pose.yaw;
+        else
+            tmp_pose.yaw = M_PI - tmp_pose.yaw;
+
+//    if(tmp_pose.roll > startpose.roll ||
+//       tmp_pose.pitch > startpose.pitch ||
+//       tmp_pose.yaw > startpose.yaw)
+//        tmp_pose.time = -1;
+//    else
+        tmp_pose.time = timestamp;
+    return tmp_pose;
+}
+
+bool getAndsaveglobalmap(string scanspath, pcl::PointCloud<PointTypePose>::Ptr pcRPYpose){
+
+    pcXYZIptr globalmap(new pcXYZI());
+    pcXYZIptr scan(new pcXYZI());
+    pcl::visualization::PCLVisualizer visualizer;
+    pcl::visualization::CloudViewer ccviewer("viewer");
+
+    for (int k = 0; k < pcRPYpose->points.size(); ++k) {
+
+        if(pcl::io::loadPCDFile<pcl::PointXYZI>(scanspath+to_string(pcRPYpose->points[k].time)+".pcd", *scan) != -1){
+
+            //转换到VLP坐标系下
+            PointTypePose vlp_pose;
+            vlp_pose = pcRPYpose->points[k];
+
+            vlp_pose.x = pcRPYpose->points[k].z;
+            vlp_pose.y = pcRPYpose->points[k].x;
+            vlp_pose.z = pcRPYpose->points[k].y;
+            vlp_pose.roll = pcRPYpose->points[k].yaw;
+            vlp_pose.pitch = pcRPYpose->points[k].roll;
+            vlp_pose.yaw = pcRPYpose->points[k].pitch;
+
+            *globalmap += *tools::transformPointCloud(scan, &vlp_pose);
+//            ccviewer.showCloud(globalmap);
+//            ccviewer.wasStwopped(100000);
+            cout<<" - scan "<<k<<" finished."<<endl;
+        } else {
+            cout<<"#no correspondent scan !"<<endl;
+            continue;
+        }
+    }
+    pcl::io::savePCDFile("/home/cyz/Data/legoloam/poses/globalmap.pcd",*globalmap);
+
+    return true;
+}
+
+
+/**
+ * 利用控制点拟合B-Spline
+ * @param deltaT
+ * @return
+ */
 //求解cumulative basis参数 -- B~(u)
 Eigen::Vector4d splineBaseCumulativeMatrixBu(double deltaT){
 
@@ -151,6 +301,15 @@ Eigen::Vector4d splineBaseCumulativeMatrixBu(double deltaT){
     paras(3) = deltaT*deltaT*deltaT ;
 
     return paras;
+}
+//反求B-Spline控制点
+bool originalposes2controlposes(vector<Sophus::SE3>poses, vector<Sophus::SE3> &controlposes){
+
+    controlposes.swap(poses);
+
+    Sophus::SE3 tmpT2 = poses[0]*Sophus::SE3::exp(4*poses[1].log());
+
+
 }
 //利用四个位姿控制点进行Spline拟合  五个？
 typedef Eigen::Matrix< double, 6, 1 > Vector6d;
@@ -177,13 +336,15 @@ bool cumulativeSplineSE3fitting(vector<PointTypePose>&poses){
     //目前只修改中间两点的位姿
     for (int j = 1; j < 3 ; ++j) {
 
-        double dt = times[j]-times[0];
+        double dt = 0.1;
+//        double dt = times[j]-times[0]+0.1;
         Eigen::Vector4d parasBu = splineBaseCumulativeMatrixBu(dt);
 
         Vector6d update1se3 = parasBu(1) * ( controlposes[0].inverse() * controlposes[1] ).log();
         Vector6d update2se3 = parasBu(2) * ( controlposes[1].inverse() * controlposes[2] ).log();
         Vector6d update3se3 = parasBu(3) * ( controlposes[2].inverse() * controlposes[3] ).log();
 
+        Vector6d newposeSE31 = controlposes[0].log() + controlposes[1].log();
         Sophus::SE3 newposeSE3 = controlposes[0] *
                                  Sophus::SE3::exp(update1se3) *
                                  Sophus::SE3::exp(update2se3) *
@@ -206,6 +367,7 @@ bool cumulativeSplineSE3fitting(vector<PointTypePose>&poses){
     return true;
 
 }
+
 
 
 /*
