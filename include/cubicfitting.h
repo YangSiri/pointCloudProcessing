@@ -19,8 +19,10 @@
 #include <kindr/common/gtest_eigen.hpp>
 #include <limits>
 
-#include <sophus/se3.h>
-#include <sophus/so3.h>
+#include <sophus/se3.hpp>
+#include <sophus/so3.hpp>
+//#include <sophus/se3.h>
+//#include <sophus/so3.h>
 
 using namespace std;
 
@@ -303,11 +305,11 @@ Eigen::Vector4d splineBaseCumulativeMatrixBu(double deltaT){
     return paras;
 }
 //反求B-Spline控制点
-bool originalposes2controlposes(vector<Sophus::SE3>poses, vector<Sophus::SE3> &controlposes){
+bool originalposes2controlposes(vector<Sophus::SE3<double>>poses, vector<Sophus::SE3<double>> &controlposes){
 
     controlposes.swap(poses);
 
-    Sophus::SE3 tmpT2 = poses[0]*Sophus::SE3::exp(4*poses[1].log());
+    Sophus::SE3<double> tmpT2 = poses[0]*Sophus::SE3<double>::exp(4*poses[1].log());
 
 
 }
@@ -316,7 +318,7 @@ typedef Eigen::Matrix< double, 6, 1 > Vector6d;
 bool cumulativeSplineSE3fitting(vector<PointTypePose>&poses){
 
     vector<double> times;
-    vector<Sophus::SE3> controlposes;
+    vector<Sophus::SE3<double>> controlposes;
     for (int i = 0; i < poses.size(); ++i) {
 
         times.push_back(poses[i].time);
@@ -328,8 +330,8 @@ bool cumulativeSplineSE3fitting(vector<PointTypePose>&poses){
         ).toRotationMatrix();
         Eigen::Vector3d t (poses[i].x, poses[i].y, poses[i].z);
 
-        Sophus::SE3 T(R, t);
-        cout<<"T: "<<T<<endl;
+        Sophus::SE3<double> T(R, t);
+//        cout<<"T: "<<T<<endl;
         controlposes.push_back(T);
     }
 
@@ -345,13 +347,13 @@ bool cumulativeSplineSE3fitting(vector<PointTypePose>&poses){
         Vector6d update3se3 = parasBu(3) * ( controlposes[2].inverse() * controlposes[3] ).log();
 
         Vector6d newposeSE31 = controlposes[0].log() + controlposes[1].log();
-        Sophus::SE3 newposeSE3 = controlposes[0] *
-                                 Sophus::SE3::exp(update1se3) *
-                                 Sophus::SE3::exp(update2se3) *
-                                 Sophus::SE3::exp(update3se3);
+        Sophus::SE3<double> newposeSE3 = controlposes[0] *
+                                 Sophus::SE3<double>::exp(update1se3) *
+                                 Sophus::SE3<double>::exp(update2se3) *
+                                 Sophus::SE3<double>::exp(update3se3);
 
-        cout<<"#intepolated T :"<<newposeSE3<<endl;
-        Eigen::Vector3d eularAgl= newposeSE3.rotation_matrix().eulerAngles(2,1,0);
+//        cout<<"#intepolated T :"<<newposeSE3<<endl;
+        Eigen::Vector3d eularAgl= newposeSE3.rotationMatrix().eulerAngles(2,1,0);
         Eigen::Vector3d translations = newposeSE3.translation();
 //        cout<<"Intepolated Eular Angles :"<<eularAgl<<endl;
 //        cout<<"Intepolated Translations :"<<translations<<endl;

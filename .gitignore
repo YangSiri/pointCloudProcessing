@@ -13,3 +13,5 @@ data/
 >>>>>>> master
 
 cmake-build-release/
+
+bin/

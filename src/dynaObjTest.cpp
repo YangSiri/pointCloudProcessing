@@ -38,7 +38,7 @@ int main(int argc, char** argv)
     int datanum = 0;
 
 
-//    //reading per scan timestamp for interpolation   #存在漏帧!
+//    //reading per scan timestamp for interpolation
 //    FILE *fp;
 //    fp = fopen("/home/cyz/Data/legoloam/poses/velodyneScans/timeofscan.txt","r");
 //    double t1=0;
@@ -333,6 +333,7 @@ int main(int argc, char** argv)
     /**
      * tracker部分结束
      */
+
 
     /**
      * 测试部分
