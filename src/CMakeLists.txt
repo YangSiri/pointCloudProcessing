@@ -45,6 +45,7 @@ endif()
 #sophus
 find_package(Sophus REQUIRED)
 
+
 include_directories(
         include
         include/curves
@@ -69,7 +70,7 @@ target_link_libraries(smooth ${PCL_LIBRARIES} ${Boost_LIBRARIES})
 add_library(pcaAnalysis SHARED pcaAnalysis.cpp )
 target_link_libraries(pcaAnalysis smooth ${PCL_LIBRARIES} )
 
-add_library(buildingFacadeExtraction SHARED buildingFacadeExtraction.cpp localizationTest.cpp)
+add_library(buildingFacadeExtraction SHARED buildingFacadeExtraction.cpp planeFactorTest.cpp)
 target_link_libraries(buildingFacadeExtraction pcaAnalysis smooth ${PCL_LIBRARIES} )
 
 add_library(lidarOdometryLib SHARED lidarOdometry.cpp)
@@ -79,7 +80,7 @@ add_library(pcapReader SHARED pcapReader.cpp)
 target_link_libraries(pcapReader ${PCL_LIBRARIES} PacketDriver PacketDecoder)
 
 
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#//////////////////////////////////////////////////////////////////////////
 #add excutables
 add_executable(lidarOdometry mainFunc.cpp)
 target_link_libraries(lidarOdometry lidarOdometryLib pcapReader pcap)
@@ -96,10 +97,25 @@ target_link_libraries(dynaObjTest
         ${Sophus_LIBRARIES}
         gtsam)
 
-add_executable(localizationTest localizationTest.cpp)
-target_link_libraries(localizationTest
+add_executable(planeFactorTest planeFactorTest.cpp)
+target_link_libraries(planeFactorTest
+#        ${OCTOMAP_LIBRARIES}
         ${PCL_LIBRARIES}
-        ${OpenCV_LIBRARIES}
         ${Boost_LIBRARIES}
-        ${OCTOMAP_LIBRARIES}
+#        glog
+#        ${OpenCV_LIBRARIES}
+#        ${Sophus_LIBRARIES}
+        gtsam
+        smooth
+        )
+
+add_executable(relocalizationTest relocalizationTest.cpp)
+target_link_libraries(relocalizationTest
+        ${PCL_LIBRARIES}
+        )
+
+add_executable(trjectoryIntepolateTest trjectoryIntepolateTest.cpp)
+target_link_libraries(trjectoryIntepolateTest
+        smooth
+        ${PCL_LIBRARIES}
         )

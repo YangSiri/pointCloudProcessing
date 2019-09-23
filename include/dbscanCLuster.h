@@ -5,28 +5,23 @@
 #ifndef POINTCLOUDPROCESSING_DBSCANCLUSTER_H
 #define POINTCLOUDPROCESSING_DBSCANCLUSTER_H
 
-#include <math.h>
-#include "smoothing.h"
-#include <algorithm>
-#include <stdio.h>
 
-#include <pcl/point_types.h>
-#include <pcl/point_cloud.h>
-#include <pcl/segmentation/extract_clusters.h>
-#include <pcl/common/centroid.h>
-#include <pcl/common/common.h>
+#include "commontools.h"
+#include "smoothing.h"
+
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/filters/conditional_removal.h>
 #include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/visualization/pcl_visualizer.h>
-
+#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/segmentation/extract_clusters.h>
+#include <pcl/common/centroid.h>
 
 #include <boost/array.hpp>
 #include <boost/shared_ptr.hpp>
 
-#include "curves/PolynomialSplineVectorSpaceCurve.hpp"
+//#include "curves/PolynomialSplineVectorSpaceCurve.hpp"
 #include <gtest/gtest.h>
 
 #include <opencv2/core/core.hpp>
@@ -247,25 +242,6 @@ namespace dbscan2d{
     }
 }
 
-struct PointXYZIRPYT
-{
-    PCL_ADD_POINT4D
-    PCL_ADD_INTENSITY;
-    float roll;
-    float pitch;
-    float yaw;
-    double time;
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-} EIGEN_ALIGN16;
-POINT_CLOUD_REGISTER_POINT_STRUCT(PointXYZIRPYT,
-                                  (float, x, x) (float, y, y)
-                                          (float, z, z) (float, intensity, intensity)
-                                          (float, roll, roll) (float, pitch, pitch) (float, yaw, yaw)
-                                          (double, time, time))
-
-typedef PointXYZIRPYT  PointTypePose;
-typedef pcl::PointCloud<PointTypePose>::Ptr  pcXYZIRPYTptr;
-typedef pcl::PointCloud<PointTypePose>  pcXYZIRPYT;
 
 namespace tools{
 
@@ -589,67 +565,6 @@ namespace tools{
 
 
 
-    /**
-     * not finished yet
-     * 多项式样条曲线拟合函数
-     */
-//    typedef typename curves::PolynomialSplineQuinticVector3Curve::ValueType ValueType;
-    typedef typename curves::PolynomialSplineCubicVector6Curve::ValueType ValueType;
-    typedef typename curves::Time Time;
-    bool polySplineCubicVec6curveFitting(std::vector<PointTypePose> keyposes){
-
-        curves::PolynomialSplineCubicVector6Curve curveCubic;
-//        curves::PolynomialSplineQuinticVector3Curve curveQuin;
-        std::vector<Time> times;
-        std::vector<ValueType> values;
-
-//        //位移拟合
-//        times.push_back(0.0);
-////        values.push_back( ValueType(0.0, 0.0, 0.0) );
-//        values.push_back(ValueType(keyposes[0].x, keyposes[0].y, keyposes[0].z));
-//        times.push_back(0.4);
-//        values.push_back(ValueType(keyposes[1].x, keyposes[1].y, keyposes[1].z));
-//        times.push_back(0.8);
-//        values.push_back(ValueType(keyposes[2].x, keyposes[2].y, keyposes[2].z));
-//        times.push_back(1.2);
-//        values.push_back(ValueType(keyposes[3].x, keyposes[3].y, keyposes[3].z));
-//
-//
-//        curveCubic.fitCurve(times, values);
-//        curveCubic.clear();
-//        std::vector<Time>().swap(times);
-//        std::vector<ValueType>().swap(values);
-//
-//        FILE *fp;
-//        fp = fopen("/home/cyz/Data/legoloam/poses/keyposesFinalsplined.txt","a");
-//        std::vector<PointTypePose> keyposesSplineKnots;
-//        ValueType value;
-//        keyposesSplineKnots.resize(3);
-//        for(double t=times[1]; t<=times[2]; t+=0.1)
-//        {
-//            curveCubic.evaluate(value,t);
-//            keyposesSplineKnots[0].x = value[0];
-//        }
-//
-//
-//        //角度拟合
-//        times.push_back(0.0);
-//        values.push_back(ValueType(keyposes[0].roll, keyposes[0].pitch, keyposes[0].yaw));
-//        times.push_back(0.4);
-//        values.push_back(ValueType(keyposes[1].roll, keyposes[1].pitch, keyposes[1].yaw));
-//        times.push_back(0.8);
-//        values.push_back(ValueType(keyposes[2].roll, keyposes[2].pitch, keyposes[2].yaw));
-//        times.push_back(1.2);
-//        values.push_back(ValueType(keyposes[3].roll, keyposes[3].pitch, keyposes[3].yaw));
-//
-//        curveCubic.fitCurve(times,values);
-
-
-
-    }
-
-
-
     /***
      * 寻找最近点的位置
      * @param source
@@ -729,6 +644,7 @@ namespace tools{
             centrosPredicsXYVxVy_pc.reset( new pcXYZI());
 
         }
+
         ~clusterTracker(){}
 
 

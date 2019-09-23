@@ -288,7 +288,7 @@ bool preprocess::regionGrow_flat(pcXYZIptr cloud,
             std::cout<<"plane parameters : "<<plane_paras<<"\n";
             std::cout<<"inliers : "<<cluster[i].indices.size()<<endl;
 
-            pcl::io::savePCDFile("../data/plane_"+std::to_string(i)+".pcd", *cloud, cluster[i].indices);
+//            pcl::io::savePCDFile("../data/plane_"+std::to_string(i)+".pcd", *cloud, cluster[i].indices);
         }
 
     }

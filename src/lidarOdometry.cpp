@@ -257,7 +257,7 @@ bool lidarOdometryClass::vector2pointcloudXYZ(std::vector<Eigen::Vector3d> vecPo
 }
 
 /**
- *
+ * @details Incremental line fitting from largest to smallest
  * @param inputCloud
  * @param linesIndices
  * @return
@@ -295,7 +295,7 @@ bool lidarOdometryClass::linefitting(pcXYZ inputCloud, std::vector<std::vector<i
 
         if(inliers->indices.size() == 0)
         {
-            cout<<"There is no large plane for the given dataset. "<<endl;
+            cout<<"There is no large line for the given dataset. "<<endl;
             return false;
         }
 
@@ -306,7 +306,7 @@ bool lidarOdometryClass::linefitting(pcXYZ inputCloud, std::vector<std::vector<i
 
         if(lineIndice.size() < 5000)
         {
-            std::cout<<"No enough points in line. "<<endl;
+            std::cout<<"No enough points on the line. "<<endl;
             break;
         }
         linesIndices.push_back(lineIndice);

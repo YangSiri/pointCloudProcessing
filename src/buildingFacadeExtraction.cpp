@@ -131,6 +131,8 @@ bool buildingFacadeExtractor::meanShiftClustering(pcXYZIptr inputcloud, int iter
 
 }
 
+
+
 /**
  *
  * @param inputCloud

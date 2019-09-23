@@ -11,13 +11,16 @@
 #include <Eigen/Geometry>
 #include <Eigen/Core>
 
-#include "dbscanCLuster.h"
-#include "curves/CubicHermiteSE3Curve.hpp"
+#include <pcl/io/pcd_io.h>
 
-#include <gtest/gtest.h>
-#include <kindr/Core>
-#include <kindr/common/gtest_eigen.hpp>
-#include <limits>
+//#include "dbscanCLuster.h"
+#include "commontools.h"
+//#include "curves/CubicHermiteSE3Curve.hpp"
+
+//#include <gtest/gtest.h>
+//#include <kindr/Core>
+//#include <kindr/common/gtest_eigen.hpp>
+//#include <limits>
 
 #include <sophus/se3.hpp>
 #include <sophus/so3.hpp>
@@ -26,109 +29,66 @@
 
 using namespace std;
 
-int readRPYposefromfile(std::string file, pcXYZIRPYTptr pcRPYpose){
-
-    PointTypePose ptRPY;
-    char line[256] ;
-    ifstream infile(file.c_str());
-    if(infile.is_open())
-    {
-        while(!infile.eof())
-        {
-            infile.getline(line,256);
-            sscanf(line, "%lf %f %f %f %f %f %f\n",&ptRPY.time, &ptRPY.x, &ptRPY.y, &ptRPY.z,
-                   &ptRPY.roll, &ptRPY.pitch, &ptRPY.yaw);
-            pcRPYpose->push_back(ptRPY);
-        }
-    }
-    infile.close();
-    int keyposeSize = pcRPYpose->points.size()-1;//最后一个位姿读了两遍
-
-    return keyposeSize;
-}
-int readQuanPosefromfile(std::string file, pcXYZIRPYTptr pcQuanpose){
-
-    /**
-     * row=q.x  pitch=q.y  yaw=q.z  intensity=q.z
-     */
-    PointTypePose ptRPY;
-    char line[256] ;
-    ifstream infile(file.c_str());
-    if(infile.is_open())
-    {
-        while(!infile.eof())
-        {
-            infile.getline(line,256);
-            sscanf(line, "%lf %f %f %f %f %f %f %f\n",&ptRPY.time, &ptRPY.x, &ptRPY.y, &ptRPY.z,
-                   &ptRPY.roll, &ptRPY.pitch, &ptRPY.yaw, &ptRPY.intensity);
-            pcQuanpose->push_back(ptRPY);
-        }
-    }
-    infile.close();
-    int keyposeSize = pcQuanpose->points.size()-1;//最后一个位姿读了两遍
-
-    return keyposeSize;
-}
 
 /**
  * from ETH Zurich @github/curves
  */
-using namespace curves;
-typedef std::numeric_limits<double > dbl;
-typedef typename curves::CubicHermiteSE3Curve::ValueType ValueType;
-typedef typename curves::CubicHermiteSE3Curve::DerivativeType DerivativeType;
-typedef typename curves::Time Time;
-bool cubicHermitSE3fitting(vector<PointTypePose>&poses){
-
-    CubicHermiteSE3Curve curve;
-    std::vector<Time> times;
-    std::vector<ValueType> values;
-
-    for (int i = 0; i < poses.size(); ++i) {
-
-        times.push_back(poses[i].time);
-        values.push_back(ValueType(ValueType::Position(poses[i].x, poses[i].y, poses[i].z),
-                                   ValueType::Rotation(kindr::EulerAnglesRpyD(poses[i].roll,
-                                                                              poses[i].pitch,
-                                                                              poses[i].yaw))));
-    }
-    curve.fitCurve(times, values);
-
-
-    //不改变第一个与最后一个时间点的pose
-    for (int j = 1; j < poses.size()-1; ++j) {
-
-        ValueType value;
-//        ASSERT_TRUE(curve.evaluate(value, times[j]));
-        curve.evaluate(value, times[j]);
-
-        //translation intepolated
-        double x = value.getPosition().x();
-        double y = value.getPosition().y();
-        double z = value.getPosition().z();
-
-        //四元数->欧拉角
-        Eigen::Quaterniond q(value.getRotation().w(),
-                             value.getRotation().x(),
-                             value.getRotation().y(),
-                             value.getRotation().z());
-        Eigen::Vector3d eular = q.matrix().eulerAngles(2,1,0);
-//        Eigen::Vector3d eular = q.matrix().eulerAngles(0,1,2);
-        cout<<"Eular angles :"<<eular<<endl;
-
-        poses[j].x = x;
-        poses[j].y = y;
-        poses[j].z = z;
-        poses[j].roll = eular(2);
-        poses[j].pitch = eular(1);
-        poses[j].yaw = eular(0);
-
-//        fprintf(fp, "%lf %f %f %f %lf %lf %lf\n", times[j], x, y, z, eular(2), eular(1), eular(0));
-    }
-
-    curve.clear();
-
-}
+//using namespace curves;
+//typedef std::numeric_limits<double > dbl;
+//typedef typename curves::CubicHermiteSE3Curve::ValueType ValueType;
+//typedef typename curves::CubicHermiteSE3Curve::DerivativeType DerivativeType;
+//typedef typename curves::Time Time;
+//bool cubicHermitSE3fitting(vector<PointTypePose>&poses){
+//
+//    CubicHermiteSE3Curve curve;
+//    std::vector<Time> times;
+//    std::vector<ValueType> values;
+//
+//    for (int i = 0; i < poses.size(); ++i) {
+//
+//        times.push_back(poses[i].time);
+//        values.push_back(ValueType(ValueType::Position(poses[i].x, poses[i].y, poses[i].z),
+//                                   ValueType::Rotation(kindr::EulerAnglesRpyD(poses[i].roll,
+//                                                                              poses[i].pitch,
+//                                                                              poses[i].yaw))));
+//    }
+//    curve.fitCurve(times, values);
+//
+//
+//    //不改变第一个与最后一个时间点的pose
+//    for (int j = 1; j < poses.size()-1; ++j) {
+//
+//        ValueType value;
+////        ASSERT_TRUE(curve.evaluate(value, times[j]));
+//        curve.evaluate(value, times[j]);
+//
+//        //translation intepolated
+//        double x = value.getPosition().x();
+//        double y = value.getPosition().y();
+//        double z = value.getPosition().z();
+//
+//        //四元数->欧拉角
+//        Eigen::Quaterniond q(value.getRotation().w(),
+//                             value.getRotation().x(),
+//                             value.getRotation().y(),
+//                             value.getRotation().z());
+//        Eigen::Vector3d eular = q.matrix().eulerAngles(2,1,0);
+////        Eigen::Vector3d eular = q.matrix().eulerAngles(0,1,2);
+//        cout<<"Eular angles :"<<eular<<endl;
+//
+//        poses[j].x = x;
+//        poses[j].y = y;
+//        poses[j].z = z;
+//        poses[j].roll = eular(2);
+//        poses[j].pitch = eular(1);
+//        poses[j].yaw = eular(0);
+//
+////        fprintf(fp, "%lf %f %f %f %lf %lf %lf\n", times[j], x, y, z, eular(2), eular(1), eular(0));
+//    }
+//
+//    curve.clear();
+//
+//}
 
 
 /**
@@ -252,41 +212,42 @@ PointTypePose linearposeInterpolateAtTimestamp(PointTypePose startpose, PointTyp
     return tmp_pose;
 }
 
-bool getAndsaveglobalmap(string scanspath, pcl::PointCloud<PointTypePose>::Ptr pcRPYpose){
-
-    pcXYZIptr globalmap(new pcXYZI());
-    pcXYZIptr scan(new pcXYZI());
-    pcl::visualization::PCLVisualizer visualizer;
-    pcl::visualization::CloudViewer ccviewer("viewer");
-
-    for (int k = 0; k < pcRPYpose->points.size(); ++k) {
-
-        if(pcl::io::loadPCDFile<pcl::PointXYZI>(scanspath+to_string(pcRPYpose->points[k].time)+".pcd", *scan) != -1){
-
-            //转换到VLP坐标系下
-            PointTypePose vlp_pose;
-            vlp_pose = pcRPYpose->points[k];
-
-            vlp_pose.x = pcRPYpose->points[k].z;
-            vlp_pose.y = pcRPYpose->points[k].x;
-            vlp_pose.z = pcRPYpose->points[k].y;
-            vlp_pose.roll = pcRPYpose->points[k].yaw;
-            vlp_pose.pitch = pcRPYpose->points[k].roll;
-            vlp_pose.yaw = pcRPYpose->points[k].pitch;
-
-            *globalmap += *tools::transformPointCloud(scan, &vlp_pose);
-//            ccviewer.showCloud(globalmap);
-//            ccviewer.wasStwopped(100000);
-            cout<<" - scan "<<k<<" finished."<<endl;
-        } else {
-            cout<<"#no correspondent scan !"<<endl;
-            continue;
-        }
-    }
-    pcl::io::savePCDFile("/home/cyz/Data/legoloam/poses/globalmap.pcd",*globalmap);
-
-    return true;
-}
+//bool getAndsaveglobalmap(string scanspath, pcl::PointCloud<PointTypePose>::Ptr pcRPYpose){
+//
+//    pcXYZIptr globalmap(new pcXYZI());
+//    pcXYZIptr scan(new pcXYZI());
+//    pcl::visualization::PCLVisualizer visualizer;
+//    pcl::visualization::CloudViewer ccviewer("viewer");
+//
+//    for (int k = 0; k < pcRPYpose->points.size(); ++k) {
+//
+//        if(pcl::io::loadPCDFile<pcl::PointXYZI>(scanspath+to_string(pcRPYpose->points[k].time)+".pcd", *scan) != -1){
+//
+//            //legoLOAM中坐标系定义不同
+//            //转换到VLP坐标系下
+//            PointTypePose vlp_pose;
+//            vlp_pose = pcRPYpose->points[k];
+//
+//            vlp_pose.x = pcRPYpose->points[k].z;
+//            vlp_pose.y = pcRPYpose->points[k].x;
+//            vlp_pose.z = pcRPYpose->points[k].y;
+//            vlp_pose.roll = pcRPYpose->points[k].yaw;
+//            vlp_pose.pitch = pcRPYpose->points[k].roll;
+//            vlp_pose.yaw = pcRPYpose->points[k].pitch;
+//
+//            *globalmap += *tools::transformPointCloud(scan, &vlp_pose);
+////            ccviewer.showCloud(globalmap);
+////            ccviewer.wasStwopped(100000);
+//            cout<<" —— scan "<<k<<" finished."<<endl;
+//        } else {
+//            cout<<"#no correspondent scan !"<<endl;
+//            continue;
+//        }
+//    }
+//    pcl::io::savePCDFile("/home/joe/workspace/testData/globalmapVLP.pcd",*globalmap);
+//
+//    return true;
+//}
 
 
 /**
