@@ -157,4 +157,16 @@ bool getAndsaveglobalmap(string scanspath, pcl::PointCloud<PointTypePose>::Ptr p
     return true;
 }
 
+void filterOutFromCloudByIndices(pcXYZIptr inCloud, std::vector<int> indices){
+
+    pcl::PointIndicesPtr indicesPtr(new pcl::PointIndices());
+    indicesPtr->indices.swap(indices);
+    pcl::ExtractIndices<pcl::PointXYZI>::Ptr extractor(new pcl::ExtractIndices<pcl::PointXYZI>());
+    extractor->setInputCloud(inCloud);
+    extractor->setIndices(indicesPtr);
+    extractor->setNegative(true);
+    extractor->filter(*inCloud);
+
+}
+
 #endif //POINTCLOUDPROCESSING_COMMONTOOLS_H

@@ -34,6 +34,9 @@ int main(int argc, char** argv) {
  * track部分
  */
     {
+        clock_t st, et;
+        double ut;
+
         pcl::PointCloud<PointTypePose>::Ptr pcRPYpose(new pcl::PointCloud<PointTypePose>());
         std::string posefile = "/home/joe/workspace/testData/integratedposesQuan.txt";
 
@@ -49,30 +52,43 @@ int main(int argc, char** argv) {
         string scanFolder = "/home/joe/workspace/testData/veloScans/";
         string segFolder = "/home/joe/workspace/testData/segpure/";
 
-        pcl::visualization::PCLVisualizer visualizer;
-        pcl::visualization::CloudViewer ccviewer("viewer");
-//    const Eigen::Quaternionf noRotation(Eigen::Quaternionf::Identity());
+        std::vector<int> dynaPtsIndices;
+        pcXYZIptr pcClusterCenters(new pcXYZI());
+        pcXYZIptr pcClusterMins(new pcXYZI());
+        pcXYZIptr pcClusterMaxs(new pcXYZI());
+        //当前帧被追踪到的
+        pcXYZIptr pcClusterCentersTracked(new pcXYZI());
+        pcXYZIptr pcClusterMinsTracked(new pcXYZI());
+        pcXYZIptr pcClusterMaxsTracked(new pcXYZI());
+        pcXYZIptr pcAllmeasurements(new pcXYZI());
+        vector <pcXYZI> vecTrackedallMeasurements;
+
+        int nearestID =-1;
+        double nearestDis = -1;
+        pcl::PointXYZI predicpt;
+        pcl::visualization::CloudViewer ccviewer("Viewer");
         bool init = false;
 
         for (int i = 0; i < posesSize; i++) {
 
             cout << "\n  --->Scan " << i << endl;
 
-            pcXYZIptr pcClusterCenters(new pcXYZI());
-            pcXYZIptr pcClusterMins(new pcXYZI());
-            pcXYZIptr pcClusterMaxs(new pcXYZI());
+            pcClusterCenters.reset(new pcXYZI());
+            pcClusterMins.reset(new pcXYZI());
+            pcClusterMaxs.reset(new pcXYZI());
             //当前帧被追踪到的
-            pcXYZIptr pcClusterCentersTracked(new pcXYZI());
-            pcXYZIptr pcClusterMinsTracked(new pcXYZI());
-            pcXYZIptr pcClusterMaxsTracked(new pcXYZI());
-            pcXYZIptr pcAllmeasurements(new pcXYZI());
-            vector <pcXYZI> vecTrackedallMeasurements;
+            pcClusterCentersTracked.reset(new pcXYZI());
+            pcClusterMinsTracked.reset(new pcXYZI());
+            pcClusterMaxsTracked.reset(new pcXYZI());
+            pcAllmeasurements.reset(new pcXYZI());
+            vector <pcXYZI>().swap(vecTrackedallMeasurements) ;
 
+            //read segmented cloud first
             if (pcl::io::loadPCDFile<pcl::PointXYZI>(segFolder + to_string(pcRPYpose->points[i].time) + ".pcd",
                                                      *scan) != -1) {
+                cout << "  --->Scan " << to_string(pcRPYpose->points[i].time) << endl;
 
                 st = clock();
-
                 transformedScan->clear();
                 transformedSeg->clear();
 
@@ -109,6 +125,8 @@ int main(int argc, char** argv) {
 
                 vecTrackedallMeasurements.clear();
 
+                st = clock();
+
                 if (!init)//第一帧初始化
                 {
                     for (int j = 0; j < clusterSize; j++) {
@@ -122,26 +140,26 @@ int main(int argc, char** argv) {
                          it != trackersList.end();) {
 
                         bool tracked = false;
-                        pcl::PointXYZI predicpt = it->predicState();//z=Vx, intensity=Vy
+                        predicpt = it->predicState();//z=Vx, intensity=Vy
                         pcXYZI lastmeasurept = it->getpreMeasurements();
 
                         //根据预测值寻找当前帧对应的measurement--最近点
                         //如果ID=0,证明当前帧无对应点
-                        int nearestID = tools::findNearestNeighborIndice(predicpt, pcClusterCenters);
+                        nearestID = tools::findNearestNeighborIndice(predicpt, pcClusterCenters);
                         cout << "NNpt ID " << nearestID;
                         pcl::PointXYZI nearestPtcentro = pcClusterCenters->points[nearestID];
-                        double nearestDis = dbscan2d::distance(predicpt.x, predicpt.y, nearestPtcentro.x,
-                                                               nearestPtcentro.y);
+                        nearestDis = dbscan2d::distance(predicpt.x, predicpt.y,
+                                                        nearestPtcentro.x,
+                                                        nearestPtcentro.y);
                         cout << " >> nearest distance in 2D: " << nearestDis << endl;
 
-                        if (nearestDis < 0.8) {
+                        if (nearestDis < 0.7) {
                             it->addmeasurements(nearestPtcentro);
                             tracked = true;
 
                             //Vx > ? \\  || predicpt.z > 0
-                            if (abs(predicpt.z) > 0.6 || abs(predicpt.intensity) > 0.6)
-//                        if( predicpt.z > 0 || predicpt.z < -2)
-                            {
+                            if (abs(predicpt.z) > 0.6 || abs(predicpt.intensity) > 0.6){
+//                        if( predicpt.z > 0 || predicpt.z < -2){
                                 pcClusterCentersTracked->push_back(pcClusterCenters->points[nearestID]);
                                 pcClusterMinsTracked->push_back(pcClusterMins->points[nearestID]);
                                 pcClusterMaxsTracked->push_back(pcClusterMaxs->points[nearestID]);
@@ -149,8 +167,10 @@ int main(int argc, char** argv) {
 
                                 if (it->getTrackedtimes() > 3)
                                     tools::removepointsInBoundingbox(transformedScan,
+//                                    tools::removepointsByCropBox(transformedScan,
                                                                      pcClusterMins->points[nearestID],
-                                                                     pcClusterMaxs->points[nearestID]);
+                                                                     pcClusterMaxs->points[nearestID],
+                                                                     dynaPtsIndices);
 
                             }
 
@@ -186,33 +206,39 @@ int main(int argc, char** argv) {
                 ut = double(et - st) / CLOCKS_PER_SEC;
                 printf("Time used is :%f s for tracking. \n===============================================", ut);
 
-                ccviewer.showCloud(transformedScan);
+//                ccviewer.showCloud(transformedScan);
 
-                cout << "\n\n###filtered scan data size " << transformedScan->points.size() << endl;
+                cout << "\n\n### The number of dynamic points is " << dynaPtsIndices.size() << endl;
                 *globalmap += *transformedScan;
 
-                //visualizaiton
-                if (pcClusterCenters->points.size() > 3) {
-//                pcl::io::savePCDFile("/home/cyz/Data/legoloam/poses/scanClusterCentro/scan"+to_string(i)+".pcd"
-//                        ,*pcClusterCenters);
+                if(dynaPtsIndices.size() > 0)
+                    filterOutFromCloudByIndices(scan, dynaPtsIndices);
+                dynaPtsIndices.clear();
+                pcl::io::savePCDFile("/home/joe/workspace/testData/veloScansNodyna/"+
+                                     to_string(pcRPYpose->points[i].time) + ".pcd", *scan);
 
-                    pcl::copyPointCloud(*pcClusterMins, *tools::pcCluster_Mins);
-                    pcl::copyPointCloud(*pcClusterMaxs, *tools::pcCluster_Maxs);
-                    pcl::copyPointCloud(*pcClusterCentersTracked, *tools::pcCluster_Centros);
-                    tools::vecTrackedallmeasurements_.swap(vecTrackedallMeasurements);
-//                ccviewer.runOnVisualizationThread(tools::viewClusterbox);
-                    ccviewer.runOnVisualizationThreadOnce(tools::viewClusterbox);
-//                boost::this_thread::sleep (boost::posix_time::microseconds (3000));//sleep for a while
-                    ccviewer.removeVisualizationCallable();
-                    continue;
-                }
+                //visualizaiton
+//                if (pcClusterCenters->points.size() > 3) {
+////                pcl::io::savePCDFile("/home/cyz/Data/legoloam/poses/scanClusterCentro/scan"+to_string(i)+".pcd"
+////                        ,*pcClusterCenters);
+//
+//                    pcl::copyPointCloud(*pcClusterMins, *tools::pcCluster_Mins);
+//                    pcl::copyPointCloud(*pcClusterMaxs, *tools::pcCluster_Maxs);
+//                    pcl::copyPointCloud(*pcClusterCentersTracked, *tools::pcCluster_Centros);
+//                    tools::vecTrackedallmeasurements_.swap(vecTrackedallMeasurements);
+////                ccviewer.runOnVisualizationThread(tools::viewClusterbox);
+//                    ccviewer.runOnVisualizationThreadOnce(tools::viewClusterbox);
+////                boost::this_thread::sleep (boost::posix_time::microseconds (3000));//sleep for a while
+//                    ccviewer.removeVisualizationCallable();
+//                    continue;
+//                }
 
             }
 
 
         }
-        if (!globalmap->empty())
-            pcl::io::savePCDFile("/home/joe/workspace/testData/mapwithoutdyn.pcd", *globalmap);
+//        if (!globalmap->empty())
+//            pcl::io::savePCDFile("/home/joe/workspace/testData/mapwithoutdyn.pcd", *globalmap);
         globalmap->clear();
 
         return 0;
@@ -225,133 +251,134 @@ int main(int argc, char** argv) {
     /**
      * 测试部分
      */
-    {
-        ///octreeChangeDetectorTest:
-        st = clock();
-        float resol = 0.1f;
-        pcl::octree::OctreePointCloudChangeDetector<pcl::PointXYZI> octreChangeDect(resol);
-        pcXYZIptr scan1 = clouds[1].makeShared();
-        pcXYZIptr scan2 = clouds[2].makeShared();
-
-        octreChangeDect.setInputCloud(scan1);
-        octreChangeDect.addPointsFromInputCloud();
-
-        octreChangeDect.switchBuffers();
-
-        octreChangeDect.setInputCloud(scan2);
-        octreChangeDect.addPointsFromInputCloud();
-
-        vector<int> newPtIndic;
-        octreChangeDect.getPointIndicesFromNewVoxels(newPtIndic);
-
-        cout << "new points :" << newPtIndic.size() << endl;
-        pcXYZIptr newptsCloud(new pcXYZI());
-        for (int i = 0; i < newPtIndic.size(); i++)
-            newptsCloud->push_back(scan2->points[newPtIndic[i]]);
-        clusterSize = dbscan2d::dbscan(newptsCloud, 0.17, 30);
-        pcl::io::savePCDFile(dataFolder + "/changedptsCloud.pcd", *newptsCloud);
-
-        et = clock();
-        ut = double(et - st) / CLOCKS_PER_SEC;
-        printf("time used is :%f s for changeDetection\n", ut);
-
-        pcl::PointCloud<pcl::PointXYZL>::Ptr pcWith_labl(new pcl::PointCloud<pcl::PointXYZL>());
-        pcl::PointXYZL ptlabl;
-        for (int i = 0; i < newptsCloud->points.size(); i++)
-            if (newptsCloud->points[i].intensity != 0) {
-                ptlabl.x = newptsCloud->points[i].x;
-                ptlabl.y = newptsCloud->points[i].y;
-                ptlabl.z = newptsCloud->points[i].z;
-                ptlabl.label = (int) newptsCloud->points[i].intensity;
-                pcWith_labl->push_back(ptlabl);
-            }
-
-        pcl::visualization::PCLVisualizer viewer;
-        pcl::visualization::PointCloudColorHandlerLabelField<pcl::PointXYZL> pchandlerLabl;
-        pchandlerLabl.setInputCloud(pcWith_labl);
-        viewer.addPointCloud(pcWith_labl, pchandlerLabl, "newptsCLoud");
-        while (!viewer.wasStopped()) {
-            viewer.spin();
-        }
-
-
-        ///octomapTest:
-        octomap::ColorOcTree colorTree(0.1);
-        octomap::ColorOcTreeNode *node = nullptr;
-        pcXYZIptr changedcloud(new pcXYZI());
-        st = clock();
-        for (int i = 0; i < 3; i++) {
-            pcl::removeNaNFromPointCloud(clouds[i], clouds[i], labels);
-
-            labels.clear();
-//        int clusterSize = dbscan( clouds[i], labels, 0.3, 16);
-//        cout<<"DNSCAN size :"<<clusterSize<<endl;
-
-            for (auto p:clouds[i].points) {
-                if (abs(p.x) > 10 || abs(p.y) > 10)
-                    continue;
-
-                if (i == 0)
-                    colorTree.updateNode(octomap::point3d(p.x, p.y, 0), true);
-                else {
-                    node = colorTree.search(octomap::point3d(p.x, p.y, 0));
-                    if (node == nullptr) {
-                        changedcloud->push_back(p);
-                        colorTree.updateNode(octomap::point3d(p.x, p.y, 0), true);
-                        node = colorTree.search(octomap::point3d(p.x, p.y, 0));
-                        node->setColor(255, 0, 0);
-//                    octomap::OcTreeKey key = colorTree.coordToKey(octomap::point3d(p.x, p.y, 0), 1);
-//                    cout <<"key index: "<< key.k[0] <<", "<< key.k[1] <<", "<< key.k[2] <<endl;
-
-                    }
-
-                }
-
-//            vector<octomap::point3d> rayintersec_points;
-//            if(colorTree.computeRay(octomap::point3d(0,0,0), octomap::point3d(p.x, p.y, 0), rayintersec_points)) {
-//                for(int i=0; i<rayintersec_points.size(); i++) {
-//                    node = colorTree.search(rayintersec_points[i]);
-//                    if (node == nullptr)
-//                        continue;
-//                    if (colorTree.isNodeOccupied(node))
-//                    {
-//                        //      colorTree.deleteNode(rayintersec_points[i],0);
-//                        cout << "coming trough..." << rayintersec_points[i] << endl;
-//                        node->setColor(255, 0, 0);
-////                        node->setValue(0);
-//                    }
-//                }
+//    {
+//        ///octreeChangeDetectorTest:
+//        st = clock();
+//        float resol = 0.1f;
+//        pcl::octree::OctreePointCloudChangeDetector<pcl::PointXYZI> octreChangeDect(resol);
+//        pcXYZIptr scan1 = clouds[1].makeShared();
+//        pcXYZIptr scan2 = clouds[2].makeShared();
+//
+//        octreChangeDect.setInputCloud(scan1);
+//        octreChangeDect.addPointsFromInputCloud();
+//
+//        octreChangeDect.switchBuffers();
+//
+//        octreChangeDect.setInputCloud(scan2);
+//        octreChangeDect.addPointsFromInputCloud();
+//
+//        vector<int> newPtIndic;
+//        octreChangeDect.getPointIndicesFromNewVoxels(newPtIndic);
+//
+//        cout << "new points :" << newPtIndic.size() << endl;
+//        pcXYZIptr newptsCloud(new pcXYZI());
+//        for (int i = 0; i < newPtIndic.size(); i++)
+//            newptsCloud->push_back(scan2->points[newPtIndic[i]]);
+//        clusterSize = dbscan2d::dbscan(newptsCloud, 0.17, 30);
+//        pcl::io::savePCDFile(dataFolder + "/changedptsCloud.pcd", *newptsCloud);
+//
+//        et = clock();
+//        ut = double(et - st) / CLOCKS_PER_SEC;
+//        printf("time used is :%f s for changeDetection\n", ut);
+//
+//        pcl::PointCloud<pcl::PointXYZL>::Ptr pcWith_labl(new pcl::PointCloud<pcl::PointXYZL>());
+//        pcl::PointXYZL ptlabl;
+//        for (int i = 0; i < newptsCloud->points.size(); i++)
+//            if (newptsCloud->points[i].intensity != 0) {
+//                ptlabl.x = newptsCloud->points[i].x;
+//                ptlabl.y = newptsCloud->points[i].y;
+//                ptlabl.z = newptsCloud->points[i].z;
+//                ptlabl.label = (int) newptsCloud->points[i].intensity;
+//                pcWith_labl->push_back(ptlabl);
 //            }
-//            rayintersec_points.clear();
+//
+//        pcl::visualization::PCLVisualizer viewer;
+//        pcl::visualization::PointCloudColorHandlerLabelField<pcl::PointXYZL> pchandlerLabl;
+//        pchandlerLabl.setInputCloud(pcWith_labl);
+//        viewer.addPointCloud(pcWith_labl, pchandlerLabl, "newptsCLoud");
+//        while (!viewer.wasStopped()) {
+//            viewer.spin();
+//        }
+//
+//
+//        ///octomapTest:
+//        octomap::ColorOcTree colorTree(0.1);
+//        octomap::ColorOcTreeNode *node = nullptr;
+//        pcXYZIptr changedcloud(new pcXYZI());
+//        st = clock();
+//        for (int i = 0; i < 3; i++) {
+//            pcl::removeNaNFromPointCloud(clouds[i], clouds[i], labels);
+//
+//            labels.clear();
+////        int clusterSize = dbscan( clouds[i], labels, 0.3, 16);
+////        cout<<"DNSCAN size :"<<clusterSize<<endl;
+//
+//            for (auto p:clouds[i].points) {
+//                if (abs(p.x) > 10 || abs(p.y) > 10)
+//                    continue;
+//
+//                if (i == 0)
+//                    colorTree.updateNode(octomap::point3d(p.x, p.y, 0), true);
+//                else {
+//                    node = colorTree.search(octomap::point3d(p.x, p.y, 0));
+//                    if (node == nullptr) {
+//                        changedcloud->push_back(p);
+//                        colorTree.updateNode(octomap::point3d(p.x, p.y, 0), true);
+//                        node = colorTree.search(octomap::point3d(p.x, p.y, 0));
+//                        node->setColor(255, 0, 0);
+////                    octomap::OcTreeKey key = colorTree.coordToKey(octomap::point3d(p.x, p.y, 0), 1);
+////                    cout <<"key index: "<< key.k[0] <<", "<< key.k[1] <<", "<< key.k[2] <<endl;
+//
+//                    }
+//
+//                }
+//
+////            vector<octomap::point3d> rayintersec_points;
+////            if(colorTree.computeRay(octomap::point3d(0,0,0), octomap::point3d(p.x, p.y, 0), rayintersec_points)) {
+////                for(int i=0; i<rayintersec_points.size(); i++) {
+////                    node = colorTree.search(rayintersec_points[i]);
+////                    if (node == nullptr)
+////                        continue;
+////                    if (colorTree.isNodeOccupied(node))
+////                    {
+////                        //      colorTree.deleteNode(rayintersec_points[i],0);
+////                        cout << "coming trough..." << rayintersec_points[i] << endl;
+////                        node->setColor(255, 0, 0);
+//////                        node->setValue(0);
+////                    }
+////                }
+////            }
+////            rayintersec_points.clear();
+//
+////            colorTree.insertRay(octomap::point3d(0,0,0), octomap::point3d(p.x, p.y, 0));
+////            node = colorTree.search(octomap::point3d(p.x, p.y, 0));
+//
+////            cout<<"occupancy probability： "<<node->getOccupancy()<<endl;
+////             cout<<"node value： "<<node->getValue()<<endl;
+////            double grey = 255.0 * node->getOccupancy() ;
+////            colorTree.integrateNodeColor(p.x, p.y, 0, grey, grey, grey);
+////            if(node->getOccupancy() > 0.9)
+////                colorTree.integrateNodeColor(p.x, p.y, 0, 255, 0, 0);
+////            else
+////                colorTree.integrateNodeColor(p.x, p.y, 0, 0, 255, 0);
+//
+//            }
+//
+//            colorTree.updateInnerOccupancy();
+//
+//            datanum++;
+//            if (datanum > 2)
+//                break;
+//
+//        }
+//        pcl::io::savePCDFile(dataFolder + "/changedCloudoctomap.pcd", *changedcloud);
+//        et = clock();
+//        ut = double(et - st) / CLOCKS_PER_SEC;
+//        printf("time used is :%f s for octomap\n", ut);
+//        colorTree.write("/home/cyz/Data/legoloam/seg_pure/octo.ot");
+//
+//
+//        return 0;
+//    }
 
-//            colorTree.insertRay(octomap::point3d(0,0,0), octomap::point3d(p.x, p.y, 0));
-//            node = colorTree.search(octomap::point3d(p.x, p.y, 0));
-
-//            cout<<"occupancy probability： "<<node->getOccupancy()<<endl;
-//             cout<<"node value： "<<node->getValue()<<endl;
-//            double grey = 255.0 * node->getOccupancy() ;
-//            colorTree.integrateNodeColor(p.x, p.y, 0, grey, grey, grey);
-//            if(node->getOccupancy() > 0.9)
-//                colorTree.integrateNodeColor(p.x, p.y, 0, 255, 0, 0);
-//            else
-//                colorTree.integrateNodeColor(p.x, p.y, 0, 0, 255, 0);
-
-            }
-
-            colorTree.updateInnerOccupancy();
-
-            datanum++;
-            if (datanum > 2)
-                break;
-
-        }
-        pcl::io::savePCDFile(dataFolder + "/changedCloudoctomap.pcd", *changedcloud);
-        et = clock();
-        ut = double(et - st) / CLOCKS_PER_SEC;
-        printf("time used is :%f s for octomap\n", ut);
-        colorTree.write("/home/cyz/Data/legoloam/seg_pure/octo.ot");
-
-
-        return 0;
-    }
 }

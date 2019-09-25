@@ -5,12 +5,9 @@
 #include "cubicfitting.h"
 
 int main(int argc, char** argv){
-
-    clock_t st, et;
-    double ut;
+    
     int datanum = 0;
-
-
+    
     //reading per scan timestamp for interpolation
     FILE *fp;
     fp = fopen("/home/joe/workspace/testData/veloScans/timesOfscan.txt", "r");

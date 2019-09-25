@@ -11,12 +11,14 @@
 
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/crop_box.h>
 #include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/filters/conditional_removal.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl/common/centroid.h>
+#include <pcl/octree/octree_search.h>
 
 #include <boost/array.hpp>
 #include <boost/shared_ptr.hpp>
@@ -243,7 +245,7 @@ namespace dbscan2d{
 }
 
 
-namespace tools{
+namespace tools{//tools for dynaObjTest
 
     /**
      * 利用6D位姿将点云进行转换 from LeGO-LOAM （坐标轴不同于VLP16）
@@ -440,8 +442,8 @@ namespace tools{
 
         cout<<"Original Euclidean cluster size : "<<clusters.size()<<endl;
         if(clusters.size() > 3)
-            for(int i=0; i<clusters.size(); i++)
-            {
+            for(int i=0; i<clusters.size(); i++){
+
                 pcXYZIptr pcSingleCluster(new pcXYZI);
                 for(int j=0; j<clusters[i].indices.size(); j++)
                     pcSingleCluster->push_back(pc->points[clusters[i].indices[j]]);
@@ -468,23 +470,58 @@ namespace tools{
     }
 
 
-    ///remove points in bounding box
-    void removepointsInBoundingbox(pcXYZIptr pcIn, pcl::PointXYZI minpt, pcl::PointXYZI maxpt){
+    ///remove points in bounding box by octreeBoxSearch
+    void removepointsInBoundingbox(pcXYZIptr pcIn, pcl::PointXYZI minpt, pcl::PointXYZI maxpt,
+                                   std::vector<int>& indices){
 
-        pcXYZIptr pcfilteredOut(new pcXYZI());
-        for (int i = 0; i < pcIn->points.size(); ++i) {
-            double buffer = 0.5;//delete buffer(m)
-            if(pcIn->points[i].x > minpt.x-buffer &&
-               pcIn->points[i].y > minpt.y-buffer &&
-               pcIn->points[i].z > minpt.z
-               && pcIn->points[i].x < maxpt.x+buffer
-               && pcIn->points[i].y < maxpt.y+buffer
-               && pcIn->points[i].z < maxpt.z+buffer)
-                    continue;
-            pcfilteredOut->push_back(pcIn->points[i]);
-        }
-        pcIn->clear();
-        pcl::copyPointCloud(*pcfilteredOut, *pcIn);
+        std::vector<int> indices_;
+        int ptInboxNum = 0;
+        Eigen::Vector3f buffer(0.5, 0.5, 0.5);
+
+        pcl::octree::OctreePointCloudSearch<pcl::PointXYZI> octreePointCloudSearch(0.1);
+        octreePointCloudSearch.setInputCloud(pcIn);
+        octreePointCloudSearch.addPointsFromInputCloud();// !!!
+        ptInboxNum = octreePointCloudSearch.boxSearch(minpt.getVector3fMap()-buffer,
+                                                      maxpt.getVector3fMap()+buffer, indices_);
+        cout<<"\n-- Dynamic points num "<<ptInboxNum<<" / "<<indices_.size()<<endl;
+
+        for (int i = 0; i < ptInboxNum; ++i)
+            indices.push_back(indices_[i]);
+
+//        filterOutFromCloudByIndices(pcIn, indices_);
+
+//        pcXYZIptr pcfilteredOut(new pcXYZI());
+//        for (int i = 0; i < ptInboxNum; ++i) {
+//            double buffer = 0.5;//delete buffer(m)
+//            if(pcIn->points[i].x > minpt.x-buffer &&
+//               pcIn->points[i].y > minpt.y-buffer &&
+//               pcIn->points[i].z > minpt.z
+//               && pcIn->points[i].x < maxpt.x+buffer
+//               && pcIn->points[i].y < maxpt.y+buffer
+//               && pcIn->points[i].z < maxpt.z+buffer)
+//                    continue;
+//            pcfilteredOut->push_back(pcIn->points[i]);
+//        }
+//        pcIn->clear();
+//        pcl::copyPointCloud(*pcfilteredOut, *pcIn);
+    }
+    void removepointsByCropBox(pcXYZIptr pcIn, pcl::PointXYZI minpt, pcl::PointXYZI maxpt){
+
+        std::vector<int> indices;
+        double buffer = 0.5 ;
+//        pcXYZIptr pcfilteredOut(new pcXYZI());
+        pcl::CropBox<pcl::PointXYZI>::Ptr cropper(new pcl::CropBox<pcl::PointXYZI>(true));
+        cropper->setInputCloud(pcIn);
+        cropper->setMin(Eigen::Vector4f(minpt.x-buffer, minpt.y-buffer, minpt.z-buffer, 1.0));
+        cropper->setMax(Eigen::Vector4f(maxpt.x+buffer, maxpt.y+buffer, maxpt.z+buffer, 1.0));
+        cropper->setNegative(true);
+        cropper->filter(indices);
+
+        cout<<"\n-- Dynamic points num "<<indices.size()<<endl;
+//        pcl::copyPointCloud(*pcfilteredOut, *pcIn);
+        for (int i = 0; i < indices.size(); ++i)
+            pcIn->points[indices[i]].intensity = 150;
+
     }
 
 
@@ -522,9 +559,9 @@ namespace tools{
 //        }
 
         //tracked centers
-        for(int i=0; i<pcCluster_Centros->points.size(); i++)
-        {
-            Eigen::Vector3f centro;
+        Eigen::Vector3f centro;
+        for(int i=0; i<pcCluster_Centros->points.size(); i++){
+
             centro[0] = pcCluster_Centros->points[i].x;
             centro[1] = pcCluster_Centros->points[i].y;
             centro[2] = pcCluster_Centros->points[i].z;
