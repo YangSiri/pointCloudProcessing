@@ -77,7 +77,7 @@ int main()
     }
 
 
-    //point feature based on curvature of scan line
+    //point feature based on the curvature of scan line
     {
         vector<pcXYZI> pcScans;
         std::vector<Eigen::MatrixXf> rangeImgs;

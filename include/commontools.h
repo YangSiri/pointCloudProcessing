@@ -17,6 +17,7 @@
 
 #include "smoothing.h"
 
+
 struct PointXYZIRPYT
 {
     PCL_ADD_POINT4D

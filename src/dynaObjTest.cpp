@@ -11,7 +11,6 @@
 
 #include <Eigen/Core>
 
-#include <octomap/octomap.h>
 #include <octomap/ColorOcTree.h>
 
 #include <pcl/common/transforms.h>
@@ -24,6 +23,7 @@
 #include "dbscanCLuster.h"
 #include "smoothing.h"
 #include "commontools.h"
+#include "ringProjection.h"
 
 using namespace std;
 //using namespace curves;
@@ -47,6 +47,7 @@ int main(int argc, char** argv) {
         pcXYZIptr transformedScan(new pcXYZI());
         pcXYZIptr transformedSeg(new pcXYZI());
         pcXYZIptr scan(new pcXYZI());
+        pcXYZIptr segedCloud(new pcXYZI());
 
         std::vector <tools::clusterTracker> trackersList;
         string scanFolder = "/home/joe/workspace/testData/veloScans/";
@@ -68,6 +69,7 @@ int main(int argc, char** argv) {
         pcl::PointXYZI predicpt;
         pcl::visualization::CloudViewer ccviewer("Viewer");
         bool init = false;
+        RingProjector ringProjector(2, 2);
 
         for (int i = 0; i < posesSize; i++) {
 
@@ -84,13 +86,19 @@ int main(int argc, char** argv) {
             vector <pcXYZI>().swap(vecTrackedallMeasurements) ;
 
             //read segmented cloud first
-            if (pcl::io::loadPCDFile<pcl::PointXYZI>(segFolder + to_string(pcRPYpose->points[i].time) + ".pcd",
+            if (pcl::io::loadPCDFile<pcl::PointXYZI>(scanFolder + to_string(pcRPYpose->points[i].time) + ".pcd",
                                                      *scan) != -1) {
                 cout << "  --->Scan " << to_string(pcRPYpose->points[i].time) << endl;
 
                 st = clock();
+                segedCloud->clear();
                 transformedScan->clear();
                 transformedSeg->clear();
+
+                RingProjector ringProjector(2, 2);
+                ringProjector.setInputCloud(scan);
+                ringProjector.fullSegmentation();
+                ringProjector.publishCloud(segedCloud);
 
                 PointTypePose vlp_pose;
                 vlp_pose = pcRPYpose->points[i];
@@ -105,17 +113,21 @@ int main(int argc, char** argv) {
 
                 Eigen::Vector3f t(vlp_pose.z, vlp_pose.x, vlp_pose.y);
                 Eigen::Quaternionf quan(vlp_pose.intensity, vlp_pose.yaw, vlp_pose.roll, vlp_pose.pitch);
-                pcl::transformPointCloud(*scan, *transformedSeg, t, quan);
+                pcl::transformPointCloud(*segedCloud, *transformedSeg, t, quan);
 
                 //打开相对应的vlpscan
-                if (pcl::io::loadPCDFile<pcl::PointXYZI>(scanFolder + to_string(pcRPYpose->points[i].time) + ".pcd",
-                                                         *scan) == -1)
-                    continue;
+//                if (pcl::io::loadPCDFile<pcl::PointXYZI>(scanFolder + to_string(pcRPYpose->points[i].time) + ".pcd",
+//                                                         *scan) == -1)
+//                    continue;
                 pcl::transformPointCloud(*scan, *transformedScan, t, quan);
 
 //            ccviewer.showCloud(transformedScan);
-//                ccviewer.showCloud(transformedSeg);
-
+                ccviewer.showCloud(segedCloud);
+                segedCloud->width = 1;
+                segedCloud->height = segedCloud->points.size();
+                pcl::io::savePCDFile("/home/joe/workspace/testData/cloudaboveground/"+
+                to_string(pcRPYpose->points[i].time)+".pcd", *segedCloud);
+                continue;
 
                 int clusterSize = tools::extractClusterEuclidean(transformedSeg,
                                                                  pcClusterCenters,

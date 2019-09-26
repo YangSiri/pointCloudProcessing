@@ -79,6 +79,7 @@ target_link_libraries(lidarOdometryLib smooth ${PCL_LIBRARIES})
 add_library(pcapReader SHARED pcapReader.cpp)
 target_link_libraries(pcapReader ${PCL_LIBRARIES} PacketDriver PacketDecoder)
 
+add_library(ringProjection SHARED ringProjection.cpp)
 
 #//////////////////////////////////////////////////////////////////////////
 #add excutables
@@ -94,8 +95,8 @@ target_link_libraries(dynaObjTest
         ${OpenCV_LIBRARIES}
         polynomial_splines_traits
         cubicHermiteSE3curve
-        ${Sophus_LIBRARIES}
-        gtsam)
+        ringProjection
+        )
 
 add_executable(planeFactorTest planeFactorTest.cpp)
 target_link_libraries(planeFactorTest
@@ -118,4 +119,5 @@ add_executable(trjectoryIntepolateTest trjectoryIntepolateTest.cpp)
 target_link_libraries(trjectoryIntepolateTest
         smooth
         ${PCL_LIBRARIES}
+        ${Sophus_LIBRARIES}
         )

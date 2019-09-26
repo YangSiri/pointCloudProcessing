@@ -91,10 +91,9 @@ int main()
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr bigCurv(new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::PointCloud<pcl::Normal>::Ptr pcNormals (new pcl::PointCloud<pcl::Normal>);
     preprocessor.normalestimate(pc_filtered, pcNormals);///normal estimation
+
     for(int i=0 ; i<pcNormals->points.size() ; i++)
-    {
-        if(pcNormals->points[i].curvature * 100 > 25)
-        {
+        if(pcNormals->points[i].curvature * 100 > 25){
             pcl::PointXYZRGB ptRGB ;
             ptRGB.x = pc_filtered->points[i].x;
             ptRGB.y = pc_filtered->points[i].y;
@@ -106,10 +105,8 @@ int main()
 
             bigCurv->push_back(ptRGB);
 //            cout<<"curvature : "<<pcNormals->points[i].curvature * 100<<endl;
-
         }
 
-    }
 
     ///PCA
 //    pcl::PointCloud<pcl::PointXYZI>::Ptr keyCloud (new pcl::PointCloud<pcl::PointXYZI>);

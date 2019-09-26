@@ -162,8 +162,8 @@ bool buildingFacadeExtractor::constructVoxels(pcXYZIptr inputCloud, float gridRe
 //    voxel *voxelArrptr = new voxel[voxelSize];
     std::vector<int> inVoxelpt;
 
-    for(int i=0 ; i<voxelSize ; i++)
-    {
+    for(int i=0 ; i<voxelSize ; i++){
+
         std::vector<int>().swap(inVoxelpt);
         pcOctree.voxelSearch(voxelCenterpts[i], inVoxelpt);
 
