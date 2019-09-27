@@ -43,7 +43,6 @@ namespace dbscan3d {
         return sqrt(dx * dx + dy * dy + dz*dz);
     }
 
-
     const inline int region_query(const pcXYZIptr input, int p, std::vector<int> &output, double eps) {
 
         for(int i = 0; i < (int)input->points.size(); i++){
@@ -55,7 +54,6 @@ namespace dbscan3d {
 
         return output.size();
     }
-
 
     bool expand_cluster(const pcXYZIptr input, int p, std::vector<int> &output, int cluster, double eps, int min) {
 
@@ -111,8 +109,8 @@ namespace dbscan3d {
         return true;
     }
 
-
     int dbscan(pcXYZIptr input, double eps, int min) {
+
         int size = input->points.size();
         int cluster = 1;
 
@@ -141,6 +139,7 @@ namespace dbscan3d {
 }
 
 namespace dbscan2d{
+
     static const inline double distance(double x1, double y1, double x2, double y2)
     {
         double dx = x2 - x1;
@@ -149,24 +148,27 @@ namespace dbscan2d{
         return sqrt(dx * dx + dy * dy);
     }
 
+    //返回p点eps半径内点数
     const inline int region_query(const pcXYZIptr input, int p, std::vector<int> &output, double eps)
     {
-        for(int i = 0; i < (int)input->points.size(); i++){
+        vector<float > dists;
+        pcl::KdTreeFLANN<pcl::PointXYZI> kdTreeFlann;
+        kdTreeFlann.setInputCloud(input);
+        kdTreeFlann.radiusSearch(input->points[p], eps, output, dists);
+        dists.clear();
 
-            if(distance(input->points[i].x, input->points[i].y, input->points[p].x, input->points[p].y) < eps){
-                output.push_back(i);
-            }
-        }
+//        for(int i = 0; i < (int)input->points.size(); i++)
+//            if(distance(input->points[i].x, input->points[i].y, input->points[p].x, input->points[p].y) < eps)
+//                output.push_back(i);
 
         return output.size();
     }
 
     bool expand_cluster(const pcXYZIptr input, int p, std::vector<int> &output, int cluster, double eps, int min)
     {
-        std::vector<int> seeds;
+        std::vector<int> seeds;//邻域点indices
 
         if(region_query(input, p, seeds, eps) < min){
-
             //this point is noise
             output[p] = -1;
             return false;
@@ -174,9 +176,8 @@ namespace dbscan2d{
         }else{
 
             //set cluster id
-            for(int i = 0; i < (int)seeds.size(); i++){
+            for(int i = 0; i < (int)seeds.size(); i++)
                 output[seeds[i]] = cluster;
-            }
 
             //delete paint from seeds
             seeds.erase(std::remove(seeds.begin(), seeds.end(), p), seeds.end());
@@ -193,13 +194,12 @@ namespace dbscan2d{
 
                         int rp = result[i];
 
-                        //this paint is noise or unmarked point
+                        //this point is noise or unmarked point
                         if(output[rp] < 1){
 
                             //unmarked point
-                            if(!output[rp]){
+                            if(!output[rp])
                                 seeds.push_back(rp);
-                            }
 
                             //set cluster id
                             output[rp] = cluster;
@@ -215,25 +215,32 @@ namespace dbscan2d{
         return true;
     }
 
-    int dbscan( pcXYZIptr input, double eps, int min)
-    {
+    /// DBSCAN 密度聚类: 最小半径内含有不少于最少点的点为中心点，位于中心点搜索半径内的点为边界点
+    /// \param input 输入点云
+    /// \param eps 搜索半径
+    /// \param min 半径内最少点
+    /// \return 簇的个数
+    int dbscan( pcXYZIptr input, double eps, int min){
+
         int size = input->points.size();
         int cluster = 1;
 
+        pcXYZIptr cloud2d(new pcXYZI());
+        pcl::copyPointCloud(*input, *cloud2d);
+        for (int j = 0; j < size; ++j)
+            cloud2d->points[j].z = 0;
+
         std::vector<int> state(size);
+//        int *state;
+//        state = new int[size];
 
-        for(int i = 0; i < size; i++){
-
-            if(!state[i]){
-
-                if(expand_cluster(input, i, state, cluster, eps, min)){
+        for(int i = 0; i < size; i++)
+            if(!state[i])
+                if(expand_cluster(cloud2d, i, state, cluster, eps, min))
                     cluster++;
-                }
-            }
-        }
 
-        for(int i=0 ; i<size ; i++)
-        {
+        for(int i=0 ; i<size ; i++){
+
             if(state[i] > 0)
                 input->points[i].intensity = state[i] * 1.0;
             else
@@ -245,7 +252,99 @@ namespace dbscan2d{
 }
 
 
-namespace tools{//tools for dynaObjTest
+namespace DynaTools{//tools for dynaObjTest
+
+    // kdtreeFLANN accelerated DBSCAN
+    int clusterDBSCAN(pcXYZIptr inCloud, double r, int minptNum,
+                      pcXYZIptr pcClusterCentos,
+                      pcXYZIptr pcClusterMinpts,
+                      pcXYZIptr pcClusterMaxpts){
+
+        int size = inCloud->points.size();
+        int clusterID = 0;
+        std::vector<int> state(size);//初始化为0,-1为visited,-2为噪点
+
+        pcXYZIptr cloud2d(new pcXYZI());
+        pcl::copyPointCloud(*inCloud, *cloud2d);
+        for (int j = 0; j < size; ++j)
+            cloud2d->points[j].z = 0;
+
+        std::vector<float > dists;
+        std::vector<int > neighbors;
+        std::vector<int > neighborsTmp;
+        pcl::KdTreeFLANN<pcl::PointXYZI> kdTreeFlann;
+        kdTreeFlann.setInputCloud(cloud2d);
+
+        for (int i = 0; i < size; ++i) {
+
+            if(state[i] != 0)
+                continue;
+
+            state[i] = -1;//is visited
+            kdTreeFlann.radiusSearch(cloud2d->points[i], r, neighbors, dists);
+            if(neighbors.size() < minptNum)
+                state[i] = -2;// NOISE
+            else{
+                clusterID ++;
+                state[i] = clusterID;
+                for (int j = 0; j < neighbors.size(); ++j) {
+
+                    if(state[neighbors[j]] == 0){//is not visited
+                        state[neighbors[j]] = -1;
+                        kdTreeFlann.radiusSearch(cloud2d->points[neighbors[j]], r, neighborsTmp, dists);
+                        if(neighborsTmp.size() >= minptNum)
+                            neighbors.insert(neighbors.end(), neighborsTmp.begin(), neighborsTmp.end());
+                    }
+                    if(state[neighbors[j]] == -1)//is not a member of any cluster
+                        state[neighbors[j]] = clusterID;
+                }
+            }
+
+        }
+
+//        for(int i=0 ; i<size ; i++){
+//
+//            if(state[i] > 0)
+//                inCloud->points[i].intensity = state[i] * 1.0;
+//            else
+//                inCloud->points[i].intensity = 0.0;
+//        }
+
+        std::vector<pcl::PointIndices> clusters(clusterID);
+
+        for(int i=0 ; i<size ; i++)
+            if(state[i] > 0)
+                clusters[state[i]-1].indices.push_back(i);
+
+        pcXYZIptr pcSingleCluster(new pcXYZI());
+        Eigen::Vector4f centroVec;
+        pcl::PointXYZI centro, max, min;
+
+
+        if(clusterID > 3)
+            for(int i=0; i<clusterID; i++){
+
+                for(int j=0; j<clusters[i].indices.size(); j++)
+                    pcSingleCluster->push_back(inCloud->points[clusters[i].indices[j]]);
+
+                pcl::compute3DCentroid(*pcSingleCluster,centroVec);
+                pcl::getMinMax3D(*pcSingleCluster, min, max);
+                pcSingleCluster->clear(); // !!!
+
+                if(max.x-min.x>6 || max.y-min.y>6 || max.z-min.z<0.4 )
+                    continue;
+//                if(max.x-min.x>8 || max.y-min.y>8 || max.z-min.z<0.6 || max.z-min.z>5)
+//                    continue;
+                centro.x = centroVec[0];
+                centro.y = centroVec[1];
+                centro.z = centroVec[2];
+                pcClusterCentos->push_back(centro);
+                pcClusterMinpts->push_back(min);
+                pcClusterMaxpts->push_back(max);
+            }
+
+        return clusterID;
+    }
 
     /**
      * 利用6D位姿将点云进行转换 from LeGO-LOAM （坐标轴不同于VLP16）
@@ -383,14 +482,16 @@ namespace tools{//tools for dynaObjTest
 
     /**
      * 截取点云 降采样 简单欧氏距离聚类
-     * @param pc
-     * @param pcClusterCentos
-     * @param pcClusterMinpts
-     * @param pcClusterMaxpts
-     * @return
+     * @param pc //input point cloud
+     * @param pcClusterCentos //cluster centro point
+     * @param pcClusterMinpts //bounding box min point
+     * @param pcClusterMaxpts //bounding box max point
+     * @return  //size of clusters
      */
-    int extractClusterEuclidean(pcXYZIptr pc, pcXYZIptr pcClusterCentos,
-                                 pcXYZIptr pcClusterMinpts, pcXYZIptr pcClusterMaxpts){
+    int extractClusterEuclidean(const pcXYZIptr pc, double disThre,
+                                pcXYZIptr pcClusterCentos,
+                                pcXYZIptr pcClusterMinpts,
+                                pcXYZIptr pcClusterMaxpts){
 
 //        pcl::ConditionAnd<pcl::PointXYZI>::Ptr condi(new pcl::ConditionAnd<pcl::PointXYZI>());
 //        condi->addComparison(pcl::FieldComparison<pcl::PointXYZI>::ConstPtr
@@ -427,31 +528,35 @@ namespace tools{//tools for dynaObjTest
         pcXYZIptr pcNoheights(new pcXYZI());///z=0 for better cluster
         pcl::copyPointCloud(*pc, *pcNoheights);
         for(int i=0; i<pc->points.size(); i++)
-            pcNoheights->points[i].z=0;
+            pcNoheights->points[i].z = 0;
 
         pcl::search::KdTree<pcl::PointXYZI>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZI>);
         tree->setInputCloud(pc);
+//        tree->setInputCloud(pcNoheights);
         std::vector<pcl::PointIndices> clusters;
         pcl::EuclideanClusterExtraction<pcl::PointXYZI> eucliClusterExt;
-        eucliClusterExt.setClusterTolerance(0.2);
+        eucliClusterExt.setClusterTolerance(disThre);
         eucliClusterExt.setMinClusterSize(20);
-        eucliClusterExt.setMaxClusterSize(5000);
+        eucliClusterExt.setMaxClusterSize(4000);
         eucliClusterExt.setSearchMethod(tree);
-        eucliClusterExt.setInputCloud(pcNoheights);
+//        eucliClusterExt.setInputCloud(pcNoheights);
+        eucliClusterExt.setInputCloud(pc);
         eucliClusterExt.extract(clusters);
 
         cout<<"Original Euclidean cluster size : "<<clusters.size()<<endl;
+        pcXYZIptr pcSingleCluster(new pcXYZI());
+        Eigen::Vector4f centroVec;
+        pcl::PointXYZI centro, max, min;
+
         if(clusters.size() > 3)
             for(int i=0; i<clusters.size(); i++){
 
-                pcXYZIptr pcSingleCluster(new pcXYZI);
                 for(int j=0; j<clusters[i].indices.size(); j++)
                     pcSingleCluster->push_back(pc->points[clusters[i].indices[j]]);
 
-                Eigen::Vector4f centroVec;
-                pcl::PointXYZI centro, max, min;
                 pcl::compute3DCentroid(*pcSingleCluster,centroVec);
                 pcl::getMinMax3D(*pcSingleCluster, min, max);
+                pcSingleCluster->clear(); // !!!
 
                 if(max.x-min.x>6 || max.y-min.y>6 || max.z-min.z<0.4 )
                     continue;
@@ -465,13 +570,13 @@ namespace tools{//tools for dynaObjTest
                 pcClusterMaxpts->push_back(max);
             }
 
-            return pcClusterCentos->points.size();
+        return pcClusterCentos->points.size();
 
     }
 
 
     ///remove points in bounding box by octreeBoxSearch
-    void removepointsInBoundingbox(pcXYZIptr pcIn, pcl::PointXYZI minpt, pcl::PointXYZI maxpt,
+    void removepointsInBoundingbox(const pcXYZIptr pcIn, pcl::PointXYZI minpt, pcl::PointXYZI maxpt,
                                    std::vector<int>& indices){
 
         std::vector<int> indices_;
@@ -480,10 +585,10 @@ namespace tools{//tools for dynaObjTest
 
         pcl::octree::OctreePointCloudSearch<pcl::PointXYZI> octreePointCloudSearch(0.1);
         octreePointCloudSearch.setInputCloud(pcIn);
-        octreePointCloudSearch.addPointsFromInputCloud();// !!!
+        octreePointCloudSearch.addPointsFromInputCloud();// dont forget !!!
         ptInboxNum = octreePointCloudSearch.boxSearch(minpt.getVector3fMap()-buffer,
                                                       maxpt.getVector3fMap()+buffer, indices_);
-        cout<<"\n-- Dynamic points num "<<ptInboxNum<<" / "<<indices_.size()<<endl;
+        cout<<"\n-- Dynamic points num "<<ptInboxNum<<endl;
 
         for (int i = 0; i < ptInboxNum; ++i)
             indices.push_back(indices_[i]);
@@ -505,6 +610,8 @@ namespace tools{//tools for dynaObjTest
 //        pcIn->clear();
 //        pcl::copyPointCloud(*pcfilteredOut, *pcIn);
     }
+
+    /// cant work ?
     void removepointsByCropBox(pcXYZIptr pcIn, pcl::PointXYZI minpt, pcl::PointXYZI maxpt){
 
         std::vector<int> indices;
@@ -537,8 +644,7 @@ namespace tools{//tools for dynaObjTest
 
         viewer.removeAllShapes();
 
-//        for(int i=0; i<pcCluster_Mins->points.size(); i++)
-//        {
+//        for(int i=0; i<pcCluster_Mins->points.size(); i++){
 //
 ////            Eigen::Vector3f centro;
 ////            centro[0] = pcCluster_Centros->points[i].x;
@@ -546,7 +652,7 @@ namespace tools{//tools for dynaObjTest
 ////            centro[2] = pcCluster_Centros->points[i].z;
 ////            const Eigen::Quaternionf noRotation(Eigen::Quaternionf::Identity());
 ////            viewer.addCube(centro, noRotation, 1,1,1, std::to_string(i+100));
-//
+////
 //            viewer.addCube(pcCluster_Mins->points[i].x, pcCluster_Maxs->points[i].x,
 //                           pcCluster_Mins->points[i].y, pcCluster_Maxs->points[i].y,
 //                           pcCluster_Mins->points[i].z, pcCluster_Maxs->points[i].z,
@@ -565,7 +671,7 @@ namespace tools{//tools for dynaObjTest
             centro[0] = pcCluster_Centros->points[i].x;
             centro[1] = pcCluster_Centros->points[i].y;
             centro[2] = pcCluster_Centros->points[i].z;
-            const Eigen::Quaternionf noRotation(Eigen::Quaternionf::Identity());
+//            const Eigen::Quaternionf noRotation(Eigen::Quaternionf::Identity());
 //            viewer.addCube(centro, noRotation, 1,1,1, std::to_string(i+100));
 
             for (int j = 0; j < vecTrackedallmeasurements_[i].points.size()-1; ++j) {
@@ -576,19 +682,7 @@ namespace tools{//tools for dynaObjTest
                 viewer.setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH,5,
                                                    std::to_string(i+1000+j*30));
             }
-//            viewer.addArrow(pclastmeasurements_->points[i], pcCluster_Centros->points[i], 255,0,0, std::to_string(i+1000));
 
-//            pcl::ModelCoefficients sphere_coeff;
-//            sphere_coeff.values.resize (4);    // We need 4 values
-//            sphere_coeff.values[0] = pcCluster_Centros->points[i].x;
-//            sphere_coeff.values[1] = pcCluster_Centros->points[i].y;
-//            sphere_coeff.values[2] = pcCluster_Centros->points[i].z;
-//            sphere_coeff.values[2] = 0.6;
-//            viewer.addSphere(sphere_coeff,std::to_string(i+100));
-
-//            viewer.setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION,
-//                                               pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME,
-//                                               std::to_string(i+100));
 
         }
 
@@ -765,7 +859,7 @@ namespace tools{//tools for dynaObjTest
             }
 
             else
-            return trackedtimes;
+                return trackedtimes;
         }
 
 

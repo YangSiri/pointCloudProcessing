@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
         pcXYZIptr scan(new pcXYZI());
         pcXYZIptr segedCloud(new pcXYZI());
 
-        std::vector <tools::clusterTracker> trackersList;
+        std::vector <DynaTools::clusterTracker> trackersList;
         string scanFolder = "/home/joe/workspace/testData/veloScans/";
         string segFolder = "/home/joe/workspace/testData/segpure/";
 
@@ -122,18 +122,23 @@ int main(int argc, char** argv) {
                 pcl::transformPointCloud(*scan, *transformedScan, t, quan);
 
 //            ccviewer.showCloud(transformedScan);
-                ccviewer.showCloud(segedCloud);
-                segedCloud->width = 1;
-                segedCloud->height = segedCloud->points.size();
-                pcl::io::savePCDFile("/home/joe/workspace/testData/cloudaboveground/"+
-                to_string(pcRPYpose->points[i].time)+".pcd", *segedCloud);
-                continue;
 
-                int clusterSize = tools::extractClusterEuclidean(transformedSeg,
-                                                                 pcClusterCenters,
-                                                                 pcClusterMins,
-                                                                 pcClusterMaxs);
+
+//                int clusterSize = dbscan2d::dbscan(segedCloud, 0.15, 20);// slow:0.2s / 1000pts
+                int clusterSize = DynaTools::clusterDBSCAN(transformedSeg, 0.2, 20,
+                                                           pcClusterCenters,
+                                                           pcClusterMins,
+                                                           pcClusterMaxs);// 0.03s
+//                int clusterSize = DynaTools::extractClusterEuclidean(segedCloud, 0.2
+//                                                                 pcClusterCenters,
+//                                                                 pcClusterMins,
+//                                                                 pcClusterMaxs);
                 cout << "Filtered cluster size : " << clusterSize << endl;
+                ccviewer.showCloud(transformedSeg);
+//                transformedSeg->width = 1;
+//                transformedSeg->height = transformedSeg->points.size();
+//                pcl::io::savePCDFile("/home/joe/workspace/testData/cloudaboveground/clusterCentro/"+
+//                                     to_string(pcRPYpose->points[i].time)+".pcd", *transformedSeg);
 
                 vecTrackedallMeasurements.clear();
 
@@ -142,14 +147,13 @@ int main(int argc, char** argv) {
                 if (!init)//第一帧初始化
                 {
                     for (int j = 0; j < clusterSize; j++) {
-                        tools::clusterTracker trackerTmp(j, pcClusterCenters->points[j]);
+                        DynaTools::clusterTracker trackerTmp(j, pcClusterCenters->points[j]);
                         trackersList.push_back(trackerTmp);
                     }
                     init = true;
 
                 } else {
-                    for (std::vector<tools::clusterTracker>::iterator it = trackersList.begin();
-                         it != trackersList.end();) {
+                    for (auto it = trackersList.begin(); it != trackersList.end();) {
 
                         bool tracked = false;
                         predicpt = it->predicState();//z=Vx, intensity=Vy
@@ -157,7 +161,7 @@ int main(int argc, char** argv) {
 
                         //根据预测值寻找当前帧对应的measurement--最近点
                         //如果ID=0,证明当前帧无对应点
-                        nearestID = tools::findNearestNeighborIndice(predicpt, pcClusterCenters);
+                        nearestID = DynaTools::findNearestNeighborIndice(predicpt, pcClusterCenters);
                         cout << "NNpt ID " << nearestID;
                         pcl::PointXYZI nearestPtcentro = pcClusterCenters->points[nearestID];
                         nearestDis = dbscan2d::distance(predicpt.x, predicpt.y,
@@ -165,7 +169,7 @@ int main(int argc, char** argv) {
                                                         nearestPtcentro.y);
                         cout << " >> nearest distance in 2D: " << nearestDis << endl;
 
-                        if (nearestDis < 0.7) {
+                        if (nearestDis < 0.6) {
                             it->addmeasurements(nearestPtcentro);
                             tracked = true;
 
@@ -178,8 +182,8 @@ int main(int argc, char** argv) {
                                 vecTrackedallMeasurements.push_back(lastmeasurept);//for track visualization
 
                                 if (it->getTrackedtimes() > 3)
-                                    tools::removepointsInBoundingbox(transformedScan,
-//                                    tools::removepointsByCropBox(transformedScan,
+                                    DynaTools::removepointsInBoundingbox(transformedScan,
+//                                    DynaTools::removepointsByCropBox(transformedScan,
                                                                      pcClusterMins->points[nearestID],
                                                                      pcClusterMaxs->points[nearestID],
                                                                      dynaPtsIndices);
@@ -206,7 +210,7 @@ int main(int argc, char** argv) {
                     for (int j = 0; j < clusterSize; j++) {
                         //new cluster new tracks
                         if (pcClusterCenters->points[j].intensity < 9000) {
-                            tools::clusterTracker trackerTmp(previousTrackerSize, pcClusterCenters->points[j]);
+                            DynaTools::clusterTracker trackerTmp(previousTrackerSize, pcClusterCenters->points[j]);
                             trackersList.push_back(trackerTmp);
                             previousTrackerSize++;
                         }
@@ -223,27 +227,28 @@ int main(int argc, char** argv) {
                 cout << "\n\n### The number of dynamic points is " << dynaPtsIndices.size() << endl;
                 *globalmap += *transformedScan;
 
-                if(dynaPtsIndices.size() > 0)
+                if(!dynaPtsIndices.empty() )
                     filterOutFromCloudByIndices(scan, dynaPtsIndices);
                 dynaPtsIndices.clear();
-                pcl::io::savePCDFile("/home/joe/workspace/testData/veloScansNodyna/"+
-                                     to_string(pcRPYpose->points[i].time) + ".pcd", *scan);
+//                pcl::io::savePCDFile("/home/joe/workspace/testData/veloScansNodyna/"+
+//                                     to_string(pcRPYpose->points[i].time) + ".pcd", *scan);
 
                 //visualizaiton
-//                if (pcClusterCenters->points.size() > 3) {
-////                pcl::io::savePCDFile("/home/cyz/Data/legoloam/poses/scanClusterCentro/scan"+to_string(i)+".pcd"
-////                        ,*pcClusterCenters);
-//
-//                    pcl::copyPointCloud(*pcClusterMins, *tools::pcCluster_Mins);
-//                    pcl::copyPointCloud(*pcClusterMaxs, *tools::pcCluster_Maxs);
-//                    pcl::copyPointCloud(*pcClusterCentersTracked, *tools::pcCluster_Centros);
-//                    tools::vecTrackedallmeasurements_.swap(vecTrackedallMeasurements);
-////                ccviewer.runOnVisualizationThread(tools::viewClusterbox);
-//                    ccviewer.runOnVisualizationThreadOnce(tools::viewClusterbox);
-////                boost::this_thread::sleep (boost::posix_time::microseconds (3000));//sleep for a while
-//                    ccviewer.removeVisualizationCallable();
-//                    continue;
-//                }
+                if (pcClusterCenters->points.size() > 3) {
+//                pcl::io::savePCDFile("/home/cyz/Data/legoloam/poses/scanClusterCentro/scan"+to_string(i)+".pcd"
+//                        ,*pcClusterCenters);
+
+                    pcl::copyPointCloud(*pcClusterMins, *DynaTools::pcCluster_Mins);
+                    pcl::copyPointCloud(*pcClusterMaxs, *DynaTools::pcCluster_Maxs);
+//                    pcl::copyPointCloud(*pcClusterCenters, *DynaTools::pcCluster_Centros);
+                    pcl::copyPointCloud(*pcClusterCentersTracked, *DynaTools::pcCluster_Centros);
+                    DynaTools::vecTrackedallmeasurements_.swap(vecTrackedallMeasurements);
+//                ccviewer.runOnVisualizationThread(tools::viewClusterbox);
+                    ccviewer.runOnVisualizationThreadOnce(DynaTools::viewClusterbox);
+//                    boost::this_thread::sleep (boost::posix_time::microseconds (300000));//sleep for a while
+                    ccviewer.removeVisualizationCallable();
+                    continue;
+                }
 
             }
 
