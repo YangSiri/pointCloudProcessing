@@ -173,8 +173,8 @@ int main(int argc, char** argv) {
                             it->addmeasurements(nearestPtcentro);
                             tracked = true;
 
-                            //Vx > ? \\  || predicpt.z > 0
-                            if (abs(predicpt.z) > 0.6 || abs(predicpt.intensity) > 0.6){
+                            //Vx > ?  Vy > ?
+                            if (abs(predicpt.z) > 0.4 || abs(predicpt.intensity) > 0.4){
 //                        if( predicpt.z > 0 || predicpt.z < -2){
                                 pcClusterCentersTracked->push_back(pcClusterCenters->points[nearestID]);
                                 pcClusterMinsTracked->push_back(pcClusterMins->points[nearestID]);
@@ -218,44 +218,46 @@ int main(int argc, char** argv) {
 
                 }
 
-                et = clock();
-                ut = double(et - st) / CLOCKS_PER_SEC;
-                printf("Time used is :%f s for tracking. \n===============================================", ut);
-
 //                ccviewer.showCloud(transformedScan);
 
-                cout << "\n\n### The number of dynamic points is " << dynaPtsIndices.size() << endl;
-                *globalmap += *transformedScan;
+                cout << "\n### The number of dynamic points is " << dynaPtsIndices.size() << endl;
 
                 if(!dynaPtsIndices.empty() )
+//                    filterOutFromCloudByIndices(transformedScan, dynaPtsIndices);
                     filterOutFromCloudByIndices(scan, dynaPtsIndices);
+//                *globalmap += *transformedScan;
+
                 dynaPtsIndices.clear();
 //                pcl::io::savePCDFile("/home/joe/workspace/testData/veloScansNodyna/"+
 //                                     to_string(pcRPYpose->points[i].time) + ".pcd", *scan);
 
+                et = clock();
+                ut = double(et - st) / CLOCKS_PER_SEC;
+                printf("Time used is :%f s for tracking.\n===============================================\n", ut);
+                
                 //visualizaiton
-                if (pcClusterCenters->points.size() > 3) {
-//                pcl::io::savePCDFile("/home/cyz/Data/legoloam/poses/scanClusterCentro/scan"+to_string(i)+".pcd"
-//                        ,*pcClusterCenters);
-
-                    pcl::copyPointCloud(*pcClusterMins, *DynaTools::pcCluster_Mins);
-                    pcl::copyPointCloud(*pcClusterMaxs, *DynaTools::pcCluster_Maxs);
-//                    pcl::copyPointCloud(*pcClusterCenters, *DynaTools::pcCluster_Centros);
-                    pcl::copyPointCloud(*pcClusterCentersTracked, *DynaTools::pcCluster_Centros);
-                    DynaTools::vecTrackedallmeasurements_.swap(vecTrackedallMeasurements);
-//                ccviewer.runOnVisualizationThread(tools::viewClusterbox);
-                    ccviewer.runOnVisualizationThreadOnce(DynaTools::viewClusterbox);
-//                    boost::this_thread::sleep (boost::posix_time::microseconds (300000));//sleep for a while
-                    ccviewer.removeVisualizationCallable();
-                    continue;
-                }
+//                if (pcClusterCenters->points.size() > 3) {
+////                pcl::io::savePCDFile("/home/cyz/Data/legoloam/poses/scanClusterCentro/scan"+to_string(i)+".pcd"
+////                        ,*pcClusterCenters);
+//
+//                    pcl::copyPointCloud(*pcClusterMins, *DynaTools::pcCluster_Mins);
+//                    pcl::copyPointCloud(*pcClusterMaxs, *DynaTools::pcCluster_Maxs);
+////                    pcl::copyPointCloud(*pcClusterCenters, *DynaTools::pcCluster_Centros);
+//                    pcl::copyPointCloud(*pcClusterCentersTracked, *DynaTools::pcCluster_Centros);
+//                    DynaTools::vecTrackedallmeasurements_.swap(vecTrackedallMeasurements);
+////                ccviewer.runOnVisualizationThread(tools::viewClusterbox);
+//                    ccviewer.runOnVisualizationThreadOnce(DynaTools::viewClusterbox);
+////                    boost::this_thread::sleep (boost::posix_time::microseconds (300000));//sleep for a while
+//                    ccviewer.removeVisualizationCallable();
+//                    continue;
+//                }
 
             }
 
 
         }
-//        if (!globalmap->empty())
-//            pcl::io::savePCDFile("/home/joe/workspace/testData/mapwithoutdyn.pcd", *globalmap);
+        if (!globalmap->empty())
+            pcl::io::savePCDFile("/home/joe/workspace/testData/mapwithoutdyn.pcd", *globalmap);
         globalmap->clear();
 
         return 0;

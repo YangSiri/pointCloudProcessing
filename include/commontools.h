@@ -123,7 +123,11 @@ int readQuanPosefromfile(const std::string& file, pcXYZIRPYTptr pcQuanpose){
     return keyposeSize;
 }
 
-bool getAndsaveglobalmap(string scanspath, pcl::PointCloud<PointTypePose>::Ptr pcRPYpose){
+/// Reconstruct cloud from poses with Roll,Pitch,Yaw
+/// \param scanspath  -> data folder
+/// \param pcRPYpose  -> cloud of poses
+/// \return
+bool getAndsaveglobalmapRPY(string scanspath, pcl::PointCloud<PointTypePose>::Ptr pcRPYpose){
 
     pcXYZIptr globalmap(new pcXYZI());
     pcXYZIptr scan(new pcXYZI());
@@ -159,6 +163,9 @@ bool getAndsaveglobalmap(string scanspath, pcl::PointCloud<PointTypePose>::Ptr p
     return true;
 }
 
+/// REMOVE points from cloud by indices.
+/// \param inCloud
+/// \param indices
 void filterOutFromCloudByIndices(pcXYZIptr inCloud, std::vector<int> indices){
 
     pcl::PointIndicesPtr indicesPtr(new pcl::PointIndices());

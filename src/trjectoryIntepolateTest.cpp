@@ -25,7 +25,10 @@ int main(int argc, char** argv){
     {
         pcl::PointCloud<PointTypePose>::Ptr pcRPYpose(new pcl::PointCloud<PointTypePose>());
         std::string posefile = "/home/joe/workspace/testData/keyposes6d_outdoor.txt";
+//        std::string posefile = "/home/joe/workspace/testData/integratedposesQuan.txt";
+
         int keyposeSize = readRPYposefromfile(posefile, pcRPYpose);
+//        int keyposeSize = readQuanPosefromfile(posefile, pcRPYpose);
         cout << "--->read total poses : " << keyposeSize << endl;
 
 
@@ -86,27 +89,27 @@ int main(int argc, char** argv){
             }
         }
         cout << "Linear intepolation of poses done !" << endl;
-
-        ///储存插值后的位姿（per scan）
-        FILE *fp1;
-        fp1 = fopen("/home/joe/workspace/testData/keyposesScanlinear.txt", "w");
-        for (int j = 0; j < pcIntepolatedposes->points.size(); ++j) {
-
-            fprintf(fp1, "%lf %f %f %f %lf %lf %lf\n", pcIntepolatedposes->points[j].time,
-                    pcIntepolatedposes->points[j].x,
-                    pcIntepolatedposes->points[j].y,
-                    pcIntepolatedposes->points[j].z,
-                    pcIntepolatedposes->points[j].roll,
-                    pcIntepolatedposes->points[j].pitch,
-                    pcIntepolatedposes->points[j].yaw);
-        }
-        fclose(fp1);
-        cout << "--and saved !" << endl;
+//
+//        ///储存插值后的位姿（per scan）
+//        FILE *fp1;
+//        fp1 = fopen("/home/joe/workspace/testData/keyposesScanlinear.txt", "w");
+//        for (int j = 0; j < pcIntepolatedposes->points.size(); ++j) {
+//
+//            fprintf(fp1, "%lf %f %f %f %lf %lf %lf\n", pcIntepolatedposes->points[j].time,
+//                    pcIntepolatedposes->points[j].x,
+//                    pcIntepolatedposes->points[j].y,
+//                    pcIntepolatedposes->points[j].z,
+//                    pcIntepolatedposes->points[j].roll,
+//                    pcIntepolatedposes->points[j].pitch,
+//                    pcIntepolatedposes->points[j].yaw);
+//        }
+//        fclose(fp1);
+//        cout << "--and saved !" << endl;
 
 
 //    string dataFolder = "/home/cyz/Data/legoloam/poses/keyframes/";
         string dataFolder = "/home/joe/workspace/testData/veloScans/";
-        getAndsaveglobalmap(dataFolder, pcIntepolatedposes);
+        getAndsaveglobalmapRPY(dataFolder, pcIntepolatedposes);
 
         return 0;
     }

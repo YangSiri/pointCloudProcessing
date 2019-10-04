@@ -173,17 +173,19 @@ void RingProjector::cloudSegmentation() {
 
     }
 
+
     for (size_t i = 0; i < N_SCAN; ++i)
         for (size_t j = 0; j < Horizon_SCAN; ++j){
             if (labelMat.at<int>(i,j) > 0 && labelMat.at<int>(i,j) != 999999) {
                 segmentedCloudPure->push_back(fullCloud->points[j + i * Horizon_SCAN]);
                 segmentedCloudPure->points.back().intensity = labelMat.at<int>(i, j);
+
             }
             if(groundMat.at<int8_t>(i,j) != 1 && rangeMat.at<float>(i,j) < maxGroundrangeOfcol[j]){
                 cloudaboveGround->points.push_back(
-//                            fullCloud->points[j + i*Horizon_SCAN]);
                         laserCloudIn->points[fullInfoCloud->points[j + i*Horizon_SCAN].x]);
             }
+
         }
 
 

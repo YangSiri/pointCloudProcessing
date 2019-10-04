@@ -138,7 +138,7 @@ namespace dbscan3d {
     }
 }
 
-namespace dbscan2d{
+namespace dbscan2d{//too slow !
 
     static const inline double distance(double x1, double y1, double x2, double y2)
     {
@@ -331,7 +331,7 @@ namespace DynaTools{//tools for dynaObjTest
                 pcl::getMinMax3D(*pcSingleCluster, min, max);
                 pcSingleCluster->clear(); // !!!
 
-                if(max.x-min.x>6 || max.y-min.y>6 || max.z-min.z<0.4 )
+                if(max.x-min.x>4 || max.y-min.y>4 || max.z-min.z<0.3 )
                     continue;
 //                if(max.x-min.x>8 || max.y-min.y>8 || max.z-min.z<0.6 || max.z-min.z>5)
 //                    continue;
@@ -345,6 +345,8 @@ namespace DynaTools{//tools for dynaObjTest
 
         return clusterID;
     }
+
+
 
     /**
      * 利用6D位姿将点云进行转换 from LeGO-LOAM （坐标轴不同于VLP16）
@@ -581,7 +583,8 @@ namespace DynaTools{//tools for dynaObjTest
 
         std::vector<int> indices_;
         int ptInboxNum = 0;
-        Eigen::Vector3f buffer(0.5, 0.5, 0.5);
+        Eigen::Vector3f buffer(0.3, 0.3, 0.3);
+//        Eigen::Vector3f buffer(0, 0, 0);
 
         pcl::octree::OctreePointCloudSearch<pcl::PointXYZI> octreePointCloudSearch(0.1);
         octreePointCloudSearch.setInputCloud(pcIn);
@@ -644,33 +647,33 @@ namespace DynaTools{//tools for dynaObjTest
 
         viewer.removeAllShapes();
 
-//        for(int i=0; i<pcCluster_Mins->points.size(); i++){
+        for(int i=0; i<pcCluster_Mins->points.size(); i++){
+
+//            Eigen::Vector3f centro;
+//            centro[0] = pcCluster_Centros->points[i].x;
+//            centro[1] = pcCluster_Centros->points[i].y;
+//            centro[2] = pcCluster_Centros->points[i].z;
+//            const Eigen::Quaternionf noRotation(Eigen::Quaternionf::Identity());
+//            viewer.addCube(centro, noRotation, 1,1,1, std::to_string(i+100));
 //
-////            Eigen::Vector3f centro;
-////            centro[0] = pcCluster_Centros->points[i].x;
-////            centro[1] = pcCluster_Centros->points[i].y;
-////            centro[2] = pcCluster_Centros->points[i].z;
-////            const Eigen::Quaternionf noRotation(Eigen::Quaternionf::Identity());
-////            viewer.addCube(centro, noRotation, 1,1,1, std::to_string(i+100));
-////
-//            viewer.addCube(pcCluster_Mins->points[i].x, pcCluster_Maxs->points[i].x,
-//                           pcCluster_Mins->points[i].y, pcCluster_Maxs->points[i].y,
-//                           pcCluster_Mins->points[i].z, pcCluster_Maxs->points[i].z,
-//                           0,0,255, std::to_string(i));
-//            viewer.setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION,
-//                                               pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME,
-//                                               std::to_string(i));
-//
-//
-//        }
+            viewer.addCube(pcCluster_Mins->points[i].x, pcCluster_Maxs->points[i].x,
+                           pcCluster_Mins->points[i].y, pcCluster_Maxs->points[i].y,
+                           pcCluster_Mins->points[i].z, pcCluster_Maxs->points[i].z,
+                           0,0,255, std::to_string(i));
+            viewer.setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION,
+                                               pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME,
+                                               std::to_string(i));
+
+
+        }
 
         //tracked centers
         Eigen::Vector3f centro;
         for(int i=0; i<pcCluster_Centros->points.size(); i++){
 
-            centro[0] = pcCluster_Centros->points[i].x;
-            centro[1] = pcCluster_Centros->points[i].y;
-            centro[2] = pcCluster_Centros->points[i].z;
+//            centro[0] = pcCluster_Centros->points[i].x;
+//            centro[1] = pcCluster_Centros->points[i].y;
+//            centro[2] = pcCluster_Centros->points[i].z;
 //            const Eigen::Quaternionf noRotation(Eigen::Quaternionf::Identity());
 //            viewer.addCube(centro, noRotation, 1,1,1, std::to_string(i+100));
 
