@@ -43,9 +43,8 @@ typedef pcl::PointCloud<PointTypePose>  pcXYZIRPYT;
 
 using namespace std;
 
-/**
-    * 利用6D位姿将点云进行转换 from LeGO-LOAM （坐标轴不同于VLP16）
-    */
+
+/// 利用6D位姿将点云进行转换
 pcXYZIptr transformPointCloud(pcXYZIptr cloudIn, PointTypePose* transformIn){
 
     pcXYZIptr cloudOut(new pcXYZI());
@@ -55,7 +54,6 @@ pcXYZIptr transformPointCloud(pcXYZIptr cloudIn, PointTypePose* transformIn){
 
     int cloudSize = cloudIn->points.size();
     cloudOut->resize(cloudSize);
-
 
     for (int i = 0; i < cloudSize; ++i)
     {
@@ -78,6 +76,26 @@ pcXYZIptr transformPointCloud(pcXYZIptr cloudIn, PointTypePose* transformIn){
     }
     return cloudOut;
 }
+/// transform a point
+pcl::PointXYZI transformPoint(pcl::PointXYZI pointFrom, PointTypePose* transformIn){
+
+    pcl::PointXYZI pointTo;
+
+    float x1 = cos(transformIn->yaw) * pointFrom.x - sin(transformIn->yaw) * pointFrom.y;
+    float y1 = sin(transformIn->yaw) * pointFrom.x + cos(transformIn->yaw)* pointFrom.y;
+    float z1 = pointFrom.z;
+
+    float x2 = x1;
+    float y2 = cos(transformIn->roll) * y1 - sin(transformIn->roll) * z1;
+    float z2 = sin(transformIn->roll) * y1 + cos(transformIn->roll)* z1;
+
+    pointTo.x = cos(transformIn->pitch) * x2 + sin(transformIn->pitch) * z2 + transformIn->x;
+    pointTo.y = y2 + transformIn->y;
+    pointTo.z = -sin(transformIn->pitch) * x2 + cos(transformIn->pitch) * z2 + transformIn->z;
+    pointTo.intensity = pointFrom.intensity;
+
+    return pointTo;
+}
 
 int readRPYposefromfile(std::string file, pcXYZIRPYTptr pcRPYpose){
 
@@ -89,8 +107,9 @@ int readRPYposefromfile(std::string file, pcXYZIRPYTptr pcRPYpose){
         while(!infile.eof())
         {
             infile.getline(line,256);
-            sscanf(line, "%lf %f %f %f %f %f %f\n",&ptRPY.time, &ptRPY.x, &ptRPY.y, &ptRPY.z,
-                   &ptRPY.roll, &ptRPY.pitch, &ptRPY.yaw);
+            // 注意顺序
+            sscanf(line, "%lf %f %f %f %f %f %f\n",&ptRPY.time, &ptRPY.y, &ptRPY.z,&ptRPY.x,
+                   &ptRPY.pitch, &ptRPY.yaw, &ptRPY.roll);
             pcRPYpose->push_back(ptRPY);
         }
     }
@@ -99,6 +118,7 @@ int readRPYposefromfile(std::string file, pcXYZIRPYTptr pcRPYpose){
 
     return keyposeSize;
 }
+
 int readQuanPosefromfile(const std::string& file, pcXYZIRPYTptr pcQuanpose){
 
     /**
@@ -134,20 +154,22 @@ bool getAndsaveglobalmapRPY(string scanspath, pcl::PointCloud<PointTypePose>::Pt
 //    pcl::visualization::PCLVisualizer visualizer;
 //    pcl::visualization::CloudViewer ccviewer("viewer");
 
-    for (int k = 0; k < pcRPYpose->points.size(); ++k) {
+//    for (int k = 0; k < pcRPYpose->points.size(); ++k) {
+    for (int k = 50; k < 100; ++k) {
+
         if(pcl::io::loadPCDFile<pcl::PointXYZI>(scanspath+to_string(pcRPYpose->points[k].time)+".pcd", *scan) != -1){
 
-            //legoLOAM中坐标系定义不同
-            //转换到VLP坐标系下
+            // legoLOAM中坐标系定义不同
+            // 转换到VLP坐标系下
             PointTypePose vlp_pose;
             vlp_pose = pcRPYpose->points[k];
 
-            vlp_pose.x = pcRPYpose->points[k].z;
-            vlp_pose.y = pcRPYpose->points[k].x;
-            vlp_pose.z = pcRPYpose->points[k].y;
-            vlp_pose.roll = pcRPYpose->points[k].yaw;
-            vlp_pose.pitch = pcRPYpose->points[k].roll;
-            vlp_pose.yaw = pcRPYpose->points[k].pitch;
+//            vlp_pose.x = pcRPYpose->points[k].z;
+//            vlp_pose.y = pcRPYpose->points[k].x;
+//            vlp_pose.z = pcRPYpose->points[k].y;
+//            vlp_pose.roll = pcRPYpose->points[k].yaw;
+//            vlp_pose.pitch = pcRPYpose->points[k].roll;
+//            vlp_pose.yaw = pcRPYpose->points[k].pitch;
 
             *globalmap += *transformPointCloud(scan, &vlp_pose);
 //            ccviewer.showCloud(globalmap);
@@ -176,6 +198,49 @@ void filterOutFromCloudByIndices(pcXYZIptr inCloud, std::vector<int> indices){
     extractor->setNegative(true);
     extractor->filter(*inCloud);
 
+}
+
+
+int readpcXYZIfromtxt(std::string file, pcXYZIptr pcOut){
+
+    pcOut->clear();
+    pcl::PointXYZI pt1;
+    char line[256] ;
+    ifstream infile(file.c_str());
+    if(infile.is_open())
+    {
+        while(!infile.eof())
+        {
+            infile.getline(line,256);
+            sscanf(line, "%f %f %f %f\n", &pt1.x, &pt1.y, &pt1.z, &pt1.intensity);
+            pcOut->push_back(pt1);
+        }
+    }
+    infile.close();
+    int cloudsize = pcOut->points.size()-1;//最后一个位姿读了两遍?
+
+    return cloudsize;
+}
+int readpcXYZRGBfromtxt(std::string file, pcRGBptr pcOut){
+
+    pcOut->clear();
+    pcl::PointXYZRGB pt1;
+    float a;
+    char line[256] ;
+    ifstream infile(file.c_str());
+    if(infile.is_open())
+    {
+        while(!infile.eof())
+        {
+            infile.getline(line,256);
+            sscanf(line, "%f %f %f %s %s %s\n", &pt1.x, &pt1.y, &pt1.z, &pt1.r,&pt1.g,&pt1.b);
+            pcOut->push_back(pt1);
+        }
+    }
+    infile.close();
+    int cloudsize = pcOut->points.size()-1;//最后一个位姿读了两遍?
+
+    return cloudsize;
 }
 
 #endif //POINTCLOUDPROCESSING_COMMONTOOLS_H

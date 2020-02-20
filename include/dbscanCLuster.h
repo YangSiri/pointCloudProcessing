@@ -137,7 +137,6 @@ namespace dbscan3d {
         return cluster - 1;
     }
 }
-
 namespace dbscan2d{//too slow !
 
     static const inline double distance(double x1, double y1, double x2, double y2)
@@ -250,7 +249,6 @@ namespace dbscan2d{//too slow !
         return cluster - 1;
     }
 }
-
 
 namespace DynaTools{//tools for dynaObjTest
 
@@ -614,7 +612,7 @@ namespace DynaTools{//tools for dynaObjTest
 //        pcl::copyPointCloud(*pcfilteredOut, *pcIn);
     }
 
-    /// cant work ?
+    /// TODO cant work ?
     void removepointsByCropBox(pcXYZIptr pcIn, pcl::PointXYZI minpt, pcl::PointXYZI maxpt){
 
         std::vector<int> indices;
@@ -625,6 +623,7 @@ namespace DynaTools{//tools for dynaObjTest
         cropper->setMin(Eigen::Vector4f(minpt.x-buffer, minpt.y-buffer, minpt.z-buffer, 1.0));
         cropper->setMax(Eigen::Vector4f(maxpt.x+buffer, maxpt.y+buffer, maxpt.z+buffer, 1.0));
         cropper->setNegative(true);
+
         cropper->filter(indices);
 
         cout<<"\n-- Dynamic points num "<<indices.size()<<endl;

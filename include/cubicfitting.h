@@ -89,7 +89,36 @@ using namespace std;
 //    curve.clear();
 //
 //}
+#define PI 3.1415
+inline float judgeRad(double rad){
+    if (abs(rad-3) < 0.5)
+        if(rad > PI)
+            return -(rad-PI); // no
+        else
+            return -(PI-rad); // yaw
+    if (abs(rad+3) < 0.5)
+        if(rad < -PI)
+            return -(rad+PI); // no
+        else
+            return (rad+PI); // roll
 
+    return rad*1.0;
+}
+// TODO :why pitch angle is different from roll/yaw ?
+inline float judgeRad2(double rad){
+    if (abs(rad-3) < 0.5)
+        if(rad > PI)
+            return -(rad-PI); // no
+        else
+            return -(PI-rad); // yaw
+    if (abs(rad+3) < 0.5)
+        if(rad < -PI)
+            return (rad+PI); // no
+        else
+            return -(rad+PI); // roll
+
+    return rad*1.0;
+}
 
 /**
  * 线性插值位姿
@@ -112,7 +141,7 @@ bool poselinearInterpolation(PointTypePose startpose, PointTypePose endpose, int
             Eigen::AngleAxisd(startpose.roll, Eigen::Vector3d::UnitX())*
             Eigen::AngleAxisd(startpose.pitch, Eigen::Vector3d::UnitY())*
             Eigen::AngleAxisd(startpose.yaw, Eigen::Vector3d::UnitZ())
-            ).toRotationMatrix();
+    ).toRotationMatrix();
 
     Eigen::Matrix3d endrotation=(
             Eigen::AngleAxisd(startpose.roll, Eigen::Vector3d::UnitX())*
@@ -146,6 +175,11 @@ bool poselinearInterpolation(PointTypePose startpose, PointTypePose endpose, int
     return true;
 }
 
+/// 线性插值两帧之间的6D位姿
+/// \param startpose：[tx,ty,tz,roll,pitch,yaw]
+/// \param endpose
+/// \param timestamp
+/// \return pose at timestamp
 PointTypePose linearposeInterpolateAtTimestamp(PointTypePose startpose, PointTypePose endpose, double timestamp){
 
     double delta_t = endpose.time - startpose.time;
@@ -157,15 +191,15 @@ PointTypePose linearposeInterpolateAtTimestamp(PointTypePose startpose, PointTyp
     Eigen::Vector3d deltatranslation(deltatx,deltaty,deltatz);
 
     Eigen::Matrix3d startrotation=(
-            Eigen::AngleAxisd(startpose.roll, Eigen::Vector3d::UnitX())*
+            Eigen::AngleAxisd(startpose.yaw, Eigen::Vector3d::UnitZ()) *
             Eigen::AngleAxisd(startpose.pitch, Eigen::Vector3d::UnitY())*
-            Eigen::AngleAxisd(startpose.yaw, Eigen::Vector3d::UnitZ())
+            Eigen::AngleAxisd(startpose.roll, Eigen::Vector3d::UnitX())
     ).toRotationMatrix();
 
     Eigen::Matrix3d endrotation=(
-            Eigen::AngleAxisd(startpose.roll, Eigen::Vector3d::UnitX())*
-            Eigen::AngleAxisd(startpose.pitch, Eigen::Vector3d::UnitY())*
-            Eigen::AngleAxisd(startpose.yaw, Eigen::Vector3d::UnitZ())
+            Eigen::AngleAxisd(endpose.yaw, Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(endpose.pitch, Eigen::Vector3d::UnitY())*
+            Eigen::AngleAxisd(endpose.roll, Eigen::Vector3d::UnitX())
     ).toRotationMatrix();
     Eigen::AngleAxisd deltaR  (startrotation.inverse() * endrotation);
 
@@ -180,74 +214,37 @@ PointTypePose linearposeInterpolateAtTimestamp(PointTypePose startpose, PointTyp
     Eigen::Vector3d eulars = Rotation.eulerAngles(2,1,0);
 
     cout<<"Eular Angles :"<<eulars<<endl;
-    tmp_pose.roll = eulars(2);
-    tmp_pose.pitch = eulars(1);
-    tmp_pose.yaw = eulars(0);
+    tmp_pose.roll = judgeRad(eulars(2));
+    tmp_pose.pitch = judgeRad2(eulars(1));
+    tmp_pose.yaw = judgeRad(eulars(0));
 
-
-    if(abs(tmp_pose.roll - startpose.roll) >1 )
-        if(tmp_pose.roll < 0)
-            tmp_pose.roll = - M_PI - tmp_pose.roll;
-        else
-            tmp_pose.roll = M_PI - tmp_pose.roll;
-
-    if(abs(tmp_pose.pitch - startpose.pitch) >1 )
-        if(tmp_pose.pitch < 0)
-            tmp_pose.pitch = - M_PI - tmp_pose.pitch;
-        else
-            tmp_pose.pitch = M_PI - tmp_pose.pitch;
-
-    if(abs(tmp_pose.yaw - startpose.yaw) >1 )
-        if(tmp_pose.yaw < 0)
-            tmp_pose.yaw = - M_PI - tmp_pose.yaw;
-        else
-            tmp_pose.yaw = M_PI - tmp_pose.yaw;
+    // in case of PI
+//    if(abs(tmp_pose.roll - startpose.roll) >1 )
+//        if(tmp_pose.roll < 0)
+//            tmp_pose.roll = - PI - tmp_pose.roll;
+//        else
+//            tmp_pose.roll = PI - tmp_pose.roll;
+//
+//    if(abs(tmp_pose.pitch - startpose.pitch) >1 )
+//        if(tmp_pose.pitch < 0)
+//            tmp_pose.pitch = - PI - tmp_pose.pitch;
+//        else
+//            tmp_pose.pitch = PI - tmp_pose.pitch;
+//
+//    if(abs(tmp_pose.yaw - startpose.yaw) >1 )
+//        if(tmp_pose.yaw < 0)
+//            tmp_pose.yaw = - PI - tmp_pose.yaw;
+//        else
+//            tmp_pose.yaw = PI - tmp_pose.yaw;
 
 //    if(tmp_pose.roll > startpose.roll ||
 //       tmp_pose.pitch > startpose.pitch ||
 //       tmp_pose.yaw > startpose.yaw)
 //        tmp_pose.time = -1;
 //    else
-        tmp_pose.time = timestamp;
+    tmp_pose.time = timestamp;
     return tmp_pose;
 }
-
-//bool getAndsaveglobalmap(string scanspath, pcl::PointCloud<PointTypePose>::Ptr pcRPYpose){
-//
-//    pcXYZIptr globalmap(new pcXYZI());
-//    pcXYZIptr scan(new pcXYZI());
-//    pcl::visualization::PCLVisualizer visualizer;
-//    pcl::visualization::CloudViewer ccviewer("viewer");
-//
-//    for (int k = 0; k < pcRPYpose->points.size(); ++k) {
-//
-//        if(pcl::io::loadPCDFile<pcl::PointXYZI>(scanspath+to_string(pcRPYpose->points[k].time)+".pcd", *scan) != -1){
-//
-//            //legoLOAM中坐标系定义不同
-//            //转换到VLP坐标系下
-//            PointTypePose vlp_pose;
-//            vlp_pose = pcRPYpose->points[k];
-//
-//            vlp_pose.x = pcRPYpose->points[k].z;
-//            vlp_pose.y = pcRPYpose->points[k].x;
-//            vlp_pose.z = pcRPYpose->points[k].y;
-//            vlp_pose.roll = pcRPYpose->points[k].yaw;
-//            vlp_pose.pitch = pcRPYpose->points[k].roll;
-//            vlp_pose.yaw = pcRPYpose->points[k].pitch;
-//
-//            *globalmap += *tools::transformPointCloud(scan, &vlp_pose);
-////            ccviewer.showCloud(globalmap);
-////            ccviewer.wasStwopped(100000);
-//            cout<<" —— scan "<<k<<" finished."<<endl;
-//        } else {
-//            cout<<"#no correspondent scan !"<<endl;
-//            continue;
-//        }
-//    }
-//    pcl::io::savePCDFile("/home/joe/workspace/testData/globalmapVLP.pcd",*globalmap);
-//
-//    return true;
-//}
 
 
 /**
@@ -259,13 +256,13 @@ PointTypePose linearposeInterpolateAtTimestamp(PointTypePose startpose, PointTyp
 Eigen::Vector4d splineBaseCumulativeMatrixBu(double deltaT){
 
     Eigen::Vector4d paras(1,0,0,0);
-    paras(1) = deltaT*deltaT*deltaT - 3*deltaT*deltaT + 3*deltaT +5;
-    paras(2) = -2*deltaT*deltaT*deltaT + 3*deltaT*deltaT + 3*deltaT +1;
-    paras(3) = deltaT*deltaT*deltaT ;
+    paras(1) = (deltaT*deltaT*deltaT - 3*deltaT*deltaT + 3*deltaT +5)/6.0;
+    paras(2) = (-2*deltaT*deltaT*deltaT + 3*deltaT*deltaT + 3*deltaT +1)/6.0;
+    paras(3) = (deltaT*deltaT*deltaT)/6.0 ;
 
     return paras;
 }
-//反求B-Spline控制点
+// TODO 反求B-Spline控制点
 bool originalposes2controlposes(vector<Sophus::SE3<double>>poses, vector<Sophus::SE3<double>> &controlposes){
 
     controlposes.swap(poses);
@@ -274,20 +271,21 @@ bool originalposes2controlposes(vector<Sophus::SE3<double>>poses, vector<Sophus:
 
 
 }
-//利用四个位姿控制点进行Spline拟合  五个？
+// 利用四个位姿控制点进行Spline拟合
+// 获得时刻t的位姿，t介于第二个位姿与第三个位姿之间
 typedef Eigen::Matrix< double, 6, 1 > Vector6d;
-bool cumulativeSplineSE3fitting(vector<PointTypePose>&poses){
+PointTypePose cumulativeSplineSE3fitting(vector<PointTypePose> &poses, double t){
 
     vector<double> times;
-    vector<Sophus::SE3<double>> controlposes;
+    vector<Sophus::SE3<double> > controlposes;
     for (int i = 0; i < poses.size(); ++i) {
 
         times.push_back(poses[i].time);
 //        Eigen::Vector3d eular(poses[i].yaw, poses[i].pitch, poses[i].roll);
         Eigen::Matrix3d R=(
-                Eigen::AngleAxisd(poses[i].roll, Eigen::Vector3d::UnitX())*
+                Eigen::AngleAxisd(poses[i].yaw, Eigen::Vector3d::UnitZ()) *
                 Eigen::AngleAxisd(poses[i].pitch, Eigen::Vector3d::UnitY())*
-                Eigen::AngleAxisd(poses[i].yaw, Eigen::Vector3d::UnitZ())
+                Eigen::AngleAxisd(poses[i].roll, Eigen::Vector3d::UnitX())
         ).toRotationMatrix();
         Eigen::Vector3d t (poses[i].x, poses[i].y, poses[i].z);
 
@@ -296,39 +294,37 @@ bool cumulativeSplineSE3fitting(vector<PointTypePose>&poses){
         controlposes.push_back(T);
     }
 
-    //目前只修改中间两点的位姿
-    for (int j = 1; j < 3 ; ++j) {
-
-        double dt = 0.1;
+    PointTypePose poseOut;
+    double dt = (t-times[1]) / 0.4;
 //        double dt = times[j]-times[0]+0.1;
-        Eigen::Vector4d parasBu = splineBaseCumulativeMatrixBu(dt);
+    Eigen::Vector4d parasBu = splineBaseCumulativeMatrixBu(dt);
 
-        Vector6d update1se3 = parasBu(1) * ( controlposes[0].inverse() * controlposes[1] ).log();
-        Vector6d update2se3 = parasBu(2) * ( controlposes[1].inverse() * controlposes[2] ).log();
-        Vector6d update3se3 = parasBu(3) * ( controlposes[2].inverse() * controlposes[3] ).log();
+    Vector6d update1se3 = parasBu(1) * ( controlposes[0].inverse() * controlposes[1] ).log();
+    Vector6d update2se3 = parasBu(2) * ( controlposes[1].inverse() * controlposes[2] ).log();
+    Vector6d update3se3 = parasBu(3) * ( controlposes[2].inverse() * controlposes[3] ).log();
 
-        Vector6d newposeSE31 = controlposes[0].log() + controlposes[1].log();
-        Sophus::SE3<double> newposeSE3 = controlposes[0] *
-                                 Sophus::SE3<double>::exp(update1se3) *
-                                 Sophus::SE3<double>::exp(update2se3) *
-                                 Sophus::SE3<double>::exp(update3se3);
+    Vector6d newposeSE31 = parasBu(0) * controlposes[0].log() ;
+    Sophus::SE3<double> newposeSE3 = Sophus::SE3<double>::exp(newposeSE31) *
+                                     Sophus::SE3<double>::exp(update1se3) *
+                                     Sophus::SE3<double>::exp(update2se3) *
+                                     Sophus::SE3<double>::exp(update3se3);
 
 //        cout<<"#intepolated T :"<<newposeSE3<<endl;
-        Eigen::Vector3d eularAgl= newposeSE3.rotationMatrix().eulerAngles(2,1,0);
-        Eigen::Vector3d translations = newposeSE3.translation();
+    Eigen::Vector3d eularAgl= newposeSE3.rotationMatrix().eulerAngles(2,1,0);
+    Eigen::Vector3d translations = newposeSE3.translation();
 //        cout<<"Intepolated Eular Angles :"<<eularAgl<<endl;
 //        cout<<"Intepolated Translations :"<<translations<<endl;
 
-        poses[j].x = translations(0);
-        poses[j].y = translations(1);
-        poses[j].z = translations(2);
-        poses[j].roll = eularAgl(2);
-        poses[j].pitch = eularAgl(1);
-        poses[j].yaw = eularAgl(0);
-    }
+    poseOut.x = translations(0);
+    poseOut.y = translations(1);
+    poseOut.z = translations(2);
+    poseOut.roll = judgeRad(eularAgl(2));
+    poseOut.pitch = judgeRad2(eularAgl(1));
+    poseOut.yaw = judgeRad(eularAgl(0));
 
-    return true;
+    poseOut.time = t;
 
+    return poseOut;
 }
 
 

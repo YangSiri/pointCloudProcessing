@@ -16,10 +16,12 @@ find_package(Eigen3 REQUIRED)
 #add_definitions(${EIGEN_DEFINITIONS})
 #include_directories(${EIGEN_INCLUDE_DIR})
 include_directories(${EIGEN3_INCLUDE_DIR})
+MESSAGE("EIGEN3 : "${EIGEN3_INCLUDE_DIR} )
 
-
+#octomap
 find_package(octomap REQUIRED)
 include_directories(${OCTOMAP_INCLUDE_DIRS})
+MESSAGE("OCTOMAP : " ${OCTOMAP_INCLUDE_DIRS} )
 
 #opencv
 find_package(OpenCV  REQUIRED)
@@ -121,3 +123,8 @@ target_link_libraries(trjectoryIntepolateTest
         ${PCL_LIBRARIES}
         ${Sophus_LIBRARIES}
         )
+
+
+add_executable(testconditioncluster testconditioncluster.cpp)
+target_link_libraries(testconditioncluster
+        ${PCL_LIBRARIES})

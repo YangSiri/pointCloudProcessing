@@ -1,6 +1,11 @@
 //
 // Created by cyz on 19-4-2.
 //
+// this is a test for dynamic objects detection and removal for LeGO-LOAM
+// 
+// 
+/////////////////////////////////////////////////////////////////////////////////////////
+
 #include <boost/filesystem.hpp>
 
 #include <time.h>
@@ -51,7 +56,7 @@ int main(int argc, char** argv) {
 
         std::vector <DynaTools::clusterTracker> trackersList;
         string scanFolder = "/home/joe/workspace/testData/veloScans/";
-        string segFolder = "/home/joe/workspace/testData/segpure/";
+//        string segFolder = "/home/joe/workspace/testData/segpure/";
 
         std::vector<int> dynaPtsIndices;
         pcXYZIptr pcClusterCenters(new pcXYZI());
@@ -223,9 +228,9 @@ int main(int argc, char** argv) {
                 cout << "\n### The number of dynamic points is " << dynaPtsIndices.size() << endl;
 
                 if(!dynaPtsIndices.empty() )
-//                    filterOutFromCloudByIndices(transformedScan, dynaPtsIndices);
-                    filterOutFromCloudByIndices(scan, dynaPtsIndices);
-//                *globalmap += *transformedScan;
+                    filterOutFromCloudByIndices(transformedScan, dynaPtsIndices);
+//                    filterOutFromCloudByIndices(scan, dynaPtsIndices);
+                *globalmap += *transformedScan;
 
                 dynaPtsIndices.clear();
 //                pcl::io::savePCDFile("/home/joe/workspace/testData/veloScansNodyna/"+
@@ -236,21 +241,21 @@ int main(int argc, char** argv) {
                 printf("Time used is :%f s for tracking.\n===============================================\n", ut);
                 
                 //visualizaiton
-//                if (pcClusterCenters->points.size() > 3) {
-////                pcl::io::savePCDFile("/home/cyz/Data/legoloam/poses/scanClusterCentro/scan"+to_string(i)+".pcd"
-////                        ,*pcClusterCenters);
-//
-//                    pcl::copyPointCloud(*pcClusterMins, *DynaTools::pcCluster_Mins);
-//                    pcl::copyPointCloud(*pcClusterMaxs, *DynaTools::pcCluster_Maxs);
-////                    pcl::copyPointCloud(*pcClusterCenters, *DynaTools::pcCluster_Centros);
-//                    pcl::copyPointCloud(*pcClusterCentersTracked, *DynaTools::pcCluster_Centros);
-//                    DynaTools::vecTrackedallmeasurements_.swap(vecTrackedallMeasurements);
-////                ccviewer.runOnVisualizationThread(tools::viewClusterbox);
-//                    ccviewer.runOnVisualizationThreadOnce(DynaTools::viewClusterbox);
-////                    boost::this_thread::sleep (boost::posix_time::microseconds (300000));//sleep for a while
-//                    ccviewer.removeVisualizationCallable();
-//                    continue;
-//                }
+                if (pcClusterCenters->points.size() > 3) {
+//                pcl::io::savePCDFile("/home/cyz/Data/legoloam/poses/scanClusterCentro/scan"+to_string(i)+".pcd"
+//                        ,*pcClusterCenters);
+
+                    pcl::copyPointCloud(*pcClusterMins, *DynaTools::pcCluster_Mins);
+                    pcl::copyPointCloud(*pcClusterMaxs, *DynaTools::pcCluster_Maxs);
+//                    pcl::copyPointCloud(*pcClusterCenters, *DynaTools::pcCluster_Centros);
+                    pcl::copyPointCloud(*pcClusterCentersTracked, *DynaTools::pcCluster_Centros);
+                    DynaTools::vecTrackedallmeasurements_.swap(vecTrackedallMeasurements);
+//                ccviewer.runOnVisualizationThread(tools::viewClusterbox);
+                    ccviewer.runOnVisualizationThreadOnce(DynaTools::viewClusterbox);
+//                    boost::this_thread::sleep (boost::posix_time::microseconds (300000));//sleep for a while
+                    ccviewer.removeVisualizationCallable();
+                    continue;
+                }
 
             }
 
@@ -271,7 +276,7 @@ int main(int argc, char** argv) {
      * 测试部分
      */
 //    {
-//        ///octreeChangeDetectorTest:
+//        /// octreeChangeDetectorTest:
 //        st = clock();
 //        float resol = 0.1f;
 //        pcl::octree::OctreePointCloudChangeDetector<pcl::PointXYZI> octreChangeDect(resol);

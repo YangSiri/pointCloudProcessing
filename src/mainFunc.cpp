@@ -3,6 +3,10 @@
  */
 // Created by cyz on 18-10-27.
 //
+// test for kylinCloud laser scan processing
+//
+/////////////////////////////////////////////////////////////////////////////////
+
 #include "smoothing.h"
 #include "lidarOdometry.h"
 #include "pcapReader.h"
@@ -64,7 +68,7 @@ int main()
     vector<Eigen::Quaterniond> posrotats;
     lidarOdoClas.readposefile(posfile,postimes, postrans, posrotats);
 
-    //寻找线性轨迹
+    // 寻找线性轨迹
     pcXYZptr posCloud (new pcXYZ());
     lidarOdoClas.vector2pointcloudXYZ(postrans, posCloud);
     std::vector<std::vector<int>> linesIndices;
@@ -77,7 +81,7 @@ int main()
     }
 
 
-    //point feature based on the curvature of scan line
+    // point feature based on the curvature of scan line
     {
         vector<pcXYZI> pcScans;
         std::vector<Eigen::MatrixXf> rangeImgs;

@@ -18,13 +18,15 @@ using namespace lidarOdometry;
  * @param ptIdImg
  * @return
  */
-bool lidarOdometryClass::getRangeAndptIdImage(pcXYZIptr inputCloud, Eigen::MatrixXf &rangeImg, Eigen::MatrixXf &ptIdImg)
+bool lidarOdometryClass::getRangeAndptIdImage(pcXYZIptr inputCloud, Eigen::MatrixXf &rangeImg,
+                                              Eigen::MatrixXf &ptIdImg)
 {
+
     pcRGBptr colorCloud (new pcRGB());
     pcl::copyPointCloud(*inputCloud, *colorCloud);
 
 //    Eigen::MatrixXf rangeImage and ptIdimage;
-    rangeImg.resize(16,900);//VLP-16,horizontal angle resolution is 0.2 degree.900=180/0.2
+    rangeImg.resize(16,900); // VLP-16,horizontal angle resolution is 0.2 degree.900=180/0.2
     ptIdImg.resize(16,900);
     rangeImg = Eigen::MatrixXf::Zero(16,900);
     ptIdImg = Eigen::MatrixXf::Zero(16,900);
@@ -39,7 +41,7 @@ bool lidarOdometryClass::getRangeAndptIdImage(pcXYZIptr inputCloud, Eigen::Matri
     double vertiAnglMax=0, horiAnglmax=0;
     double vertiAnglMin=1000, horiAnglmin=1000;
 
-    ///求解垂直方向与水平方向角度范围
+    /// 求解垂直方向与水平方向角度范围
     for(int i=0 ; i<inputCloud->points.size() ; i++)
     {
         vertiAngl = atan(inputCloud->points[i].z / sqrt(inputCloud->points[i].x*inputCloud->points[i].x
@@ -68,7 +70,7 @@ bool lidarOdometryClass::getRangeAndptIdImage(pcXYZIptr inputCloud, Eigen::Matri
     int count = 0;
     for(int i=0 ; i<inputCloud->points.size() ; i++)
     {
-        //领域点个数小于阈值
+        // 领域点个数小于阈值
         std::vector<int>().swap(neighborIndices);
         std::vector<float>().swap(neighborDist);
         kdTree.radiusSearch(i, 3.0, neighborIndices, neighborDist );

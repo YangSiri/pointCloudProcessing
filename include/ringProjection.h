@@ -1,8 +1,10 @@
-//
+/////////////////////////////////////////////////////////
 // Created by joe on 2019/9/26.
 //
 // Modified from LeGO-LOAM imageProjection.
+// mainly aim for extracting cloudaboveground
 //
+//////////////////////////////////////////////////////////////
 
 #ifndef POINTCLOUDPROCESSING_RINGPROJECTION_H
 #define POINTCLOUDPROCESSING_RINGPROJECTION_H

@@ -56,9 +56,9 @@ bool buildingFacadeExtractor::planeProjection(pcXYZIptr inputCloud, pcl::ModelCo
  * @param iterTimes
  * @return
  */
-bool buildingFacadeExtractor::meanShiftClustering(pcXYZIptr inputcloud, int iterTimes)
-{
-    pcXYZI vecCloud;///储存每一点的mean shift vector
+bool buildingFacadeExtractor::meanShiftClustering(pcXYZIptr inputcloud, int iterTimes){
+
+    pcXYZI vecCloud;  // 储存每一点的mean shift vector
     pcl::PointXYZI tmp;
 
     pcl::KdTreeFLANN<pcl::PointXYZI> kdTreeFla;
@@ -215,7 +215,7 @@ bool buildingFacadeExtractor::makeSuperVoxels(buildingFacadeExtractor::voxel *vo
         pcaAnalysist::pcaFeature pcaFeatureOfVoxel;
         pcaAnalysistor.calculatePCAofPoint(inputCloud,
                                            voxelArrptr[i].centroid,
-                                          voxelArrptr[i].ptIndices, pcaFeatureOfVoxel);
+                                           voxelArrptr[i].ptIndices, pcaFeatureOfVoxel);
         if(pcaFeatureOfVoxel.planeStruc > 0.6)
             superVoxels.push_back(voxelArrptr[i]);
 
